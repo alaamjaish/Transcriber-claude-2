@@ -90,33 +90,6 @@
     </div>
   </div>
 
-  <!-- SONIOX KEY PANEL -->
-  <div class="card" id="keyPanel" style="display:none; margin-bottom:16px">
-    <div class="row">
-      <div class="grow">
-        <label for="apiKey">SONIOX API Key</label>
-        <input id="apiKey" type="password" placeholder="soniox_************************" autocomplete="off" />
-        <div class="sub">Stored only in your browser (<code>localStorage</code>).</div>
-      </div>
-      <div>
-        <button id="saveKeyBtn" class="big ok">Save Key</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- OPENAI KEY PANEL (mirrors Soniox UI) -->
-  <div class="card" id="openaiKeyPanel" style="display:none; margin-bottom:16px">
-    <div class="row">
-      <div class="grow">
-        <label for="openaiApiKey">OPENAI API Key</label>
-        <input id="openaiApiKey" type="password" placeholder="sk-************************" autocomplete="off" />
-        <div class="sub">Stored only in your browser (<code>localStorage</code>).</div>
-      </div>
-      <div>
-        <button id="saveOpenAiKeyBtn" class="big ok">Save OpenAI Key</button>
-      </div>
-    </div>
-  </div>
 
   <!-- CONTROLS -->
   <div class="card" style="margin-bottom:16px">
@@ -158,8 +131,7 @@
     <div id="systemWarn" class="sub warn" style="display:none;margin-top:8px"></div>
 
     <div class="row" style="margin-top:12px">
-      <button id="setKeyLink" class="secondary">Set / Change Soniox Key</button>
-      <button id="setOpenAiKeyLink" class="secondary">Set / Change OpenAI Key</button>
+      <button id="settingsBtn" class="secondary">Settings</button>
       <button id="studentsBtn" class="secondary">Students</button>
       <button id="clearAllBtn" class="secondary">Clear All Sessions</button>
     </div>
@@ -232,6 +204,35 @@
   </div>
 </div>
 
+<!-- BYOK Modal -->
+<div id="byokBack" class="modal-back" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h3 style="margin:0">API Keys Setup</h3>
+      <button id="byokClose" class="secondary" style="display:none">Close</button>
+    </div>
+    <div class="sub">Please provide your API keys to use the transcription and summary features. Keys are stored securely in your browser.</div>
+
+    <div style="margin-top:16px">
+      <label for="byokSoniox">Soniox API Key</label>
+      <input id="byokSoniox" type="password" placeholder="soniox_************************" autocomplete="off" />
+      <div class="sub">Used for speech-to-text transcription. Get yours from <a href="https://soniox.com" target="_blank">soniox.com</a></div>
+    </div>
+
+    <div style="margin-top:16px">
+      <label for="byokOpenAI">OpenAI API Key</label>
+      <input id="byokOpenAI" type="password" placeholder="sk-************************" autocomplete="off" />
+      <div class="sub">Used for lesson summaries and homework generation. Get yours from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></div>
+    </div>
+
+    <div id="byokMessage" class="sub" style="margin-top:12px; color: var(--warn); display:none"></div>
+
+    <div class="row" style="justify-content:flex-end;margin-top:16px">
+      <button id="byokSave" class="big ok">Save Keys & Continue</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   import { SonioxClient } from 'https://unpkg.com/@soniox/speech-to-text-web?module';
 
@@ -249,17 +250,16 @@
   const userEmail = document.getElementById('userEmail')
   const logoutBtn = document.getElementById('logoutBtn')
 
+  // ===== BYOK DOM =====
+  const byokBack = document.getElementById('byokBack')
+  const byokClose = document.getElementById('byokClose')
+  const byokSoniox = document.getElementById('byokSoniox')
+  const byokOpenAI = document.getElementById('byokOpenAI')
+  const byokMessage = document.getElementById('byokMessage')
+  const byokSave = document.getElementById('byokSave')
+  const settingsBtn = document.getElementById('settingsBtn')
+
   // ===== DOM =====
-  const keyPanel = document.getElementById('keyPanel');
-  const apiKeyInput = document.getElementById('apiKey');
-  const saveKeyBtn = document.getElementById('saveKeyBtn');
-  const setKeyLink = document.getElementById('setKeyLink');
-
-  const openaiKeyPanel = document.getElementById('openaiKeyPanel');
-  const openaiApiKeyInput = document.getElementById('openaiApiKey');
-  const saveOpenAiKeyBtn = document.getElementById('saveOpenAiKeyBtn');
-  const setOpenAiKeyLink = document.getElementById('setOpenAiKeyLink');
-
   const captureSystem = document.getElementById('captureSystem');
   const sysNote = document.getElementById('sysNote');
   const sysWarn = document.getElementById('systemWarn');
@@ -420,46 +420,99 @@
   }
   function cloneSegments(){ return finalSegments.map(s => ({label:s.label, text:s.text})); }
 
-  // ===== INIT =====
-  function ensureKeyPanelVisibility() {
-    const hasKey = !!localStorage.getItem('soniox_api_key');
-    keyPanel.style.display = hasKey ? 'none' : 'block';
-  }
-  function ensureOpenAIKeyPanelVisibility(){
-    const has = !!localStorage.getItem('openai_api_key');
-    openaiKeyPanel.style.display = has ? 'none' : 'block';
-  }
-  ensureKeyPanelVisibility();
-  ensureOpenAIKeyPanelVisibility();
-
-  setKeyLink.onclick = () => { keyPanel.style.display = 'block'; apiKeyInput.focus(); };
-  saveKeyBtn.onclick = () => {
-    const k = (apiKeyInput.value || '').trim();
-    if (!k) return alert('Enter a valid SONIOX API key.');
-    localStorage.setItem('soniox_api_key', k);
-    apiKeyInput.value = '';
-    keyPanel.style.display = 'none';
-    alert('Soniox key saved locally.');
-  };
-
-  setOpenAiKeyLink.onclick = () => { openaiKeyPanel.style.display = 'block'; openaiApiKeyInput.focus(); };
-  saveOpenAiKeyBtn.onclick = () => {
-    const k = (openaiApiKeyInput.value || '').trim();
-    if (!k) return alert('Enter a valid OpenAI API key.');
-    localStorage.setItem('openai_api_key', k);
-    openaiApiKeyInput.value = '';
-    openaiKeyPanel.style.display = 'none';
-    alert('OpenAI key saved locally.');
-  };
+  // ===== HELPER FUNCTIONS =====
   function getOpenAIKey() {
     const k = localStorage.getItem('openai_api_key');
     if (!k) {
-      openaiKeyPanel.style.display = 'block';
-      openaiApiKeyInput.focus();
       throw new Error('OpenAI key not set.');
     }
     return k;
   }
+
+  // ===== BYOK MODAL FUNCTIONS =====
+  function showBYOKModal(blocking = false) {
+    // Load existing keys
+    byokSoniox.value = localStorage.getItem('soniox_api_key') || ''
+    byokOpenAI.value = localStorage.getItem('openai_api_key') || ''
+
+    // Show/hide close button based on blocking mode
+    byokClose.style.display = blocking ? 'none' : 'inline-block'
+
+    // Clear any previous messages
+    byokMessage.style.display = 'none'
+    byokMessage.textContent = ''
+
+    // Show modal
+    byokBack.style.display = 'flex'
+    byokSoniox.focus()
+
+    // Lock body scroll if blocking
+    if (blocking) {
+      document.body.classList.add('modal-open')
+    }
+  }
+
+  function closeBYOKModal() {
+    byokBack.style.display = 'none'
+    document.body.classList.remove('modal-open')
+  }
+
+  function validateBYOKKeys(sonioxKey, openaiKey) {
+    const errors = []
+
+    if (!sonioxKey || !sonioxKey.trim()) {
+      errors.push('Soniox API key is required')
+    }
+
+    if (!openaiKey || !openaiKey.trim()) {
+      errors.push('OpenAI API key is required')
+    } else if (!openaiKey.startsWith('sk-')) {
+      errors.push('OpenAI API key should start with "sk-"')
+    }
+
+    return errors
+  }
+
+  function areBYOKKeysSet() {
+    const soniox = localStorage.getItem('soniox_api_key')
+    const openai = localStorage.getItem('openai_api_key')
+    return !!(soniox && openai)
+  }
+
+  // BYOK Modal Event Handlers
+  byokSave.onclick = async () => {
+    const sonioxKey = byokSoniox.value.trim()
+    const openaiKey = byokOpenAI.value.trim()
+
+    const errors = validateBYOKKeys(sonioxKey, openaiKey)
+
+    if (errors.length > 0) {
+      byokMessage.textContent = errors.join('. ')
+      byokMessage.style.display = 'block'
+      return
+    }
+
+    // Save keys to localStorage
+    localStorage.setItem('soniox_api_key', sonioxKey)
+    localStorage.setItem('openai_api_key', openaiKey)
+
+    // Hide modal
+    closeBYOKModal()
+
+    // If this was blocking mode (first-time setup), continue app initialization
+    const wasBlocking = byokClose.style.display === 'none'
+    if (wasBlocking) {
+      await setCurrentStudent(currentStudentId) // Initialize the current student pill
+      await renderHistory()
+    }
+
+    // Success message
+    alert('API keys saved successfully!')
+  }
+
+  byokClose.onclick = closeBYOKModal
+
+  settingsBtn.onclick = () => showBYOKModal(false)
 
   captureSystem.addEventListener('change', () => {
     sysNote.style.display = captureSystem.checked ? 'block' : 'none';
@@ -781,8 +834,12 @@
 
   // ===== TRANSCRIBE LIFECYCLE =====
   async function startTranscription(){
+    // Check if both API keys are set
+    if (!areBYOKKeysSet()) {
+      return alert('API keys not configured. Please set your Soniox and OpenAI keys in Settings.');
+    }
+
     const apiKey = localStorage.getItem('soniox_api_key');
-    if (!apiKey) { keyPanel.style.display='block'; apiKeyInput.focus(); return alert('Set your Soniox API key first.'); }
     // Ensure a student is selected
     if (!currentStudentId){
       openStudentPicker();
@@ -821,8 +878,7 @@
           stopAllTracks();
           setButtonsRecordingState(false);
           if (status === 'api_error' && /401|unauthorized/i.test(String(message))) {
-            alert('Invalid Soniox API key. Please set a valid key.');
-            keyPanel.style.display='block';
+            alert('Invalid Soniox API key. Please check your settings.');
           }
         }
       });
@@ -1112,6 +1168,13 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
     authSection.style.display = 'none'
     appSection.style.display = 'block'
     userEmail.textContent = user.email
+
+    // Check if BYOK keys are set - if not, show modal in blocking mode
+    if (!areBYOKKeysSet()) {
+      showBYOKModal(true) // blocking mode
+      return // Don't initialize app until keys are set
+    }
+
     await setCurrentStudent(currentStudentId) // Initialize the current student pill
     await renderHistory()
   }

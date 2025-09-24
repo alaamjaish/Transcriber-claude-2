@@ -72,6 +72,7 @@
       <button id="recordForBtn">Record for Student</button>
       <button id="renameBtn" class="secondary">Rename</button>
       <button id="deleteBtn" class="danger">Delete Student</button>
+      <button id="settingsBtn" class="secondary">Settings</button>
     </div>
   </div>
 
@@ -83,6 +84,27 @@
       </div>
     </div>
     <div id="sessions" class="history"></div>
+  </div>
+</div>
+
+<!-- BYOK Modal -->
+<div id="byokBack" class="modal-back" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h3>API Keys Setup</h3>
+    <div class="muted" style="margin-bottom:16px">Enter your API keys to use transcription and summary features.</div>
+
+    <label style="display:block; margin-bottom:4px">Soniox API Key:</label>
+    <input id="byokSoniox" type="password" placeholder="soniox_************************" style="margin-bottom:12px" />
+
+    <label style="display:block; margin-bottom:4px">OpenAI API Key:</label>
+    <input id="byokOpenAI" type="password" placeholder="sk-************************" style="margin-bottom:16px" />
+
+    <div id="byokError" style="color:var(--danger); margin-bottom:12px; display:none"></div>
+
+    <div class="row" style="justify-content:flex-end">
+      <button id="byokCancel" class="secondary" style="margin-right:8px">Cancel</button>
+      <button id="byokSave" class="big ok">Save Keys & Continue</button>
+    </div>
   </div>
 </div>
 
@@ -217,12 +239,95 @@
     }
   }
 
-  // ===== OpenAI summary (same model/flow as main) =====
+  // ===== BYOK System =====
+  function getSonioxKey() {
+    const k = localStorage.getItem('soniox_api_key')
+    if (!k) throw new Error('Soniox key not set.')
+    return k
+  }
+
   function getOpenAIKey(){
     const k = localStorage.getItem('openai_api_key');
     if (!k) throw new Error('OpenAI key not set.');
     return k;
   }
+
+  function checkBYOKKeys() {
+    const soniox = localStorage.getItem('soniox_api_key')
+    const openai = localStorage.getItem('openai_api_key')
+    return { soniox: !!soniox, openai: !!openai }
+  }
+
+  function validateBYOKKeys(sonioxKey, openaiKey) {
+    const errors = []
+    if (!sonioxKey || !sonioxKey.trim()) {
+      errors.push('Soniox API key is required')
+    }
+
+    if (!openaiKey || !openaiKey.trim()) {
+      errors.push('OpenAI API key is required')
+    } else if (!openaiKey.startsWith('sk-')) {
+      errors.push('OpenAI API key should start with "sk-"')
+    }
+
+    return errors
+  }
+
+  function showBYOKModal(blocking = false) {
+    const modal = document.getElementById('byokBack')
+    modal.style.display = 'flex'
+
+    const cancelBtn = document.getElementById('byokCancel')
+    if (blocking) {
+      cancelBtn.style.display = 'none'
+      modal.onclick = null // Prevent clicking outside to close
+    } else {
+      cancelBtn.style.display = 'inline-flex'
+      modal.onclick = (e) => {
+        if (e.target === modal) hideBYOKModal()
+      }
+    }
+
+    // Pre-fill existing keys (masked)
+    const currentSoniox = localStorage.getItem('soniox_api_key')
+    const currentOpenai = localStorage.getItem('openai_api_key')
+    if (currentSoniox) {
+      document.getElementById('byokSoniox').value = currentSoniox
+    }
+    if (currentOpenai) {
+      document.getElementById('byokOpenAI').value = currentOpenai
+    }
+  }
+
+  function hideBYOKModal() {
+    document.getElementById('byokBack').style.display = 'none'
+    document.getElementById('byokError').style.display = 'none'
+    document.getElementById('byokSoniox').value = ''
+    document.getElementById('byokOpenAI').value = ''
+  }
+
+  function saveBYOKKeys() {
+    const sonioxKey = document.getElementById('byokSoniox').value.trim()
+    const openaiKey = document.getElementById('byokOpenAI').value.trim()
+
+    const errors = validateBYOKKeys(sonioxKey, openaiKey)
+    const errorEl = document.getElementById('byokError')
+
+    if (errors.length > 0) {
+      errorEl.textContent = errors.join('. ')
+      errorEl.style.display = 'block'
+      return false
+    }
+
+    // Save keys
+    localStorage.setItem('soniox_api_key', sonioxKey)
+    localStorage.setItem('openai_api_key', openaiKey)
+
+    hideBYOKModal()
+    return true
+  }
+
+  // ===== OpenAI summary (same model/flow as main) =====
   const OPENAI_MODEL = 'gpt-5-mini';
   const SUMMARY_INSTRUCTIONS = `You are an expert Arabic–English lesson summarizer. Output ONLY Markdown with the sections requested.`;
   const SUMMARY_PROMPT = `I will give you a transcript of an Arabic–English language lesson.
@@ -273,6 +378,7 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
   const recordForBtn = $('#recordForBtn');
   const renameBtn = $('#renameBtn');
   const deleteBtn = $('#deleteBtn');
+  const settingsBtn = $('#settingsBtn');
 
   // delete modal
   const delBack = $('#delBack');
@@ -505,6 +611,13 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
   deleteBtn.onclick = openDeleteModal;
   delClose.onclick = closeDeleteModal;
 
+  // Settings button
+  settingsBtn.onclick = () => showBYOKModal(false);
+
+  // BYOK modal handlers
+  document.getElementById('byokCancel').onclick = hideBYOKModal;
+  document.getElementById('byokSave').onclick = saveBYOKKeys;
+
   delConfirm.onclick = async () => {
     const mode = (document.querySelector('input[name="delMode"]:checked')||{}).value || 'reassign';
     const sessions = await getStudentSessions(studentId);
@@ -551,7 +664,28 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
   async function showApp() {
     authSection.style.display = 'none'
     appSection.style.display = 'block'
-    await initializeApp()
+
+    // Check for BYOK keys after successful auth
+    const keys = checkBYOKKeys()
+    if (!keys.soniox || !keys.openai) {
+      // Show blocking modal for first-time setup
+      showBYOKModal(true)
+
+      // Wait for keys to be configured before proceeding
+      return new Promise((resolve) => {
+        const saveBtn = document.getElementById('byokSave')
+        const originalHandler = saveBtn.onclick
+
+        saveBtn.onclick = () => {
+          if (saveBYOKKeys()) {
+            saveBtn.onclick = originalHandler // Restore original handler
+            initializeApp().then(resolve)
+          }
+        }
+      })
+    } else {
+      await initializeApp()
+    }
   }
 
   loginBtn.onclick = async () => {
