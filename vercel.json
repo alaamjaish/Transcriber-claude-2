@@ -1,11 +1,4 @@
 {
-  "functions": {
-    "*.html": {
-      "headers": {
-        "Cache-Control": "s-maxage=1, stale-while-revalidate"
-      }
-    }
-  },
   "rewrites": [
     {
       "source": "/",
