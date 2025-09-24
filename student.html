@@ -49,14 +49,28 @@
 <body>
 <!-- AUTH SECTION -->
 <div id="authSection" class="wrap" style="display:none">
-  <div class="card">
-    <h2 style="margin:0 0 12px 0">Login Required</h2>
-    <div class="sub" style="margin-bottom:18px">Please sign in to access your student data.</div>
-    <div class="row">
-      <input id="emailInput" type="email" placeholder="Enter your email" />
-      <button id="loginBtn" class="big ok">Sign In</button>
+  <div class="card" style="max-width:480px; margin:0 auto">
+    <div style="text-align:center; margin-bottom:24px">
+      <h2 style="margin:0 0 8px 0" id="authTitle">Welcome Back</h2>
+      <div class="sub" id="authSubtitle">Sign in to access your student data</div>
     </div>
-    <div id="authMessage" class="sub" style="margin-top:12px; color: var(--warn)"></div>
+
+    <div style="margin-bottom:16px">
+      <label style="display:block; margin-bottom:6px; font-size:14px; color:var(--muted)">Email</label>
+      <input id="emailInput" type="email" placeholder="Enter your email" style="width:100%; margin-bottom:12px" />
+
+      <label style="display:block; margin-bottom:6px; font-size:14px; color:var(--muted)">Password</label>
+      <input id="passwordInput" type="password" placeholder="Enter your password" style="width:100%" />
+    </div>
+
+    <button id="authSubmitBtn" class="big ok" style="width:100%; margin-bottom:16px">Sign In</button>
+
+    <div style="text-align:center; margin-bottom:16px">
+      <span class="muted">Don't have an account? </span>
+      <button id="toggleModeBtn" class="secondary" style="padding:4px 8px; font-size:14px">Create Account</button>
+    </div>
+
+    <div id="authMessage" class="sub" style="margin-top:12px; color: var(--warn); text-align:center"></div>
   </div>
 </div>
 
@@ -153,8 +167,15 @@
   const authSection = document.getElementById('authSection')
   const appSection = document.getElementById('appSection')
   const emailInput = document.getElementById('emailInput')
-  const loginBtn = document.getElementById('loginBtn')
+  const passwordInput = document.getElementById('passwordInput')
+  const authSubmitBtn = document.getElementById('authSubmitBtn')
+  const toggleModeBtn = document.getElementById('toggleModeBtn')
+  const authTitle = document.getElementById('authTitle')
+  const authSubtitle = document.getElementById('authSubtitle')
   const authMessage = document.getElementById('authMessage')
+
+  // Auth state
+  let isSignUpMode = false
 
   // ===== Helpers =====
   const $ = sel => document.querySelector(sel);
@@ -688,32 +709,74 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
     }
   }
 
-  loginBtn.onclick = async () => {
+  // Toggle between sign-in and sign-up modes
+  toggleModeBtn.onclick = () => {
+    isSignUpMode = !isSignUpMode
+    if (isSignUpMode) {
+      authTitle.textContent = 'Create Account'
+      authSubtitle.textContent = 'Sign up to access student data'
+      authSubmitBtn.textContent = 'Create Account'
+      toggleModeBtn.textContent = 'Sign In Instead'
+      authMessage.textContent = ''
+    } else {
+      authTitle.textContent = 'Welcome Back'
+      authSubtitle.textContent = 'Sign in to access your student data'
+      authSubmitBtn.textContent = 'Sign In'
+      toggleModeBtn.textContent = 'Create Account'
+      authMessage.textContent = ''
+    }
+  }
+
+  authSubmitBtn.onclick = async () => {
     const email = emailInput.value.trim()
+    const password = passwordInput.value.trim()
+
     if (!email) {
       authMessage.textContent = 'Please enter your email'
       return
     }
+    if (!password) {
+      authMessage.textContent = 'Please enter your password'
+      return
+    }
+    if (password.length < 6) {
+      authMessage.textContent = 'Password must be at least 6 characters'
+      return
+    }
 
     try {
-      loginBtn.disabled = true
-      loginBtn.textContent = 'Sending...'
-      authMessage.textContent = 'Sending magic link to your email...'
+      authSubmitBtn.disabled = true
+      authSubmitBtn.textContent = isSignUpMode ? 'Creating...' : 'Signing in...'
+      authMessage.textContent = ''
 
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          emailRedirectTo: 'http://localhost:3000/student.html' + window.location.search
-        }
-      })
-
-      if (error) throw error
-      authMessage.textContent = 'Check your email for the login link!'
+      if (isSignUpMode) {
+        const { error } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            emailRedirectTo: window.location.origin + '/student.html' + window.location.search
+          }
+        })
+        if (error) throw error
+        authMessage.textContent = 'Account created! You can now sign in.'
+        authMessage.style.color = 'var(--ok)'
+        // Switch to sign-in mode
+        toggleModeBtn.onclick()
+        passwordInput.value = ''
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password
+        })
+        if (error) throw error
+        // showApp() will be called by onAuthStateChange
+      }
     } catch (error) {
       authMessage.textContent = 'Error: ' + error.message
+      authMessage.style.color = 'var(--warn)'
     } finally {
-      loginBtn.disabled = false
-      loginBtn.textContent = 'Sign In'
+      authSubmitBtn.disabled = false
+      authSubmitBtn.textContent = isSignUpMode ? 'Create Account' : 'Sign In'
     }
   }
 

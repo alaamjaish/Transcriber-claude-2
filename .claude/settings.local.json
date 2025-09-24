@@ -5,7 +5,8 @@
       "Bash(npx vercel:*)",
       "Bash(vercel deploy:*)",
       "Bash(vercel:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
