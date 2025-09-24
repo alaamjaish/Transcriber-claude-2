@@ -1,0 +1,599 @@
+<!-- File: student.html — Per-student page (localStorage only)
+     Usage: student.html?id=<studentId>
+     Shows only this student's sessions with the same actions as main page.
+     Manage: Record for Student, Rename, Delete (reassign or delete sessions), Move session.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Student — Sessions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0b0c10; --panel: #11141a; --muted: #667085; --text: #e6e6e6; --accent: #6ee7ff; --danger: #ff6b6b; --ok: #22c55e; --warn: #f59e0b;
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+    .wrap{max-width:920px;margin:auto;padding:24px}
+    .card{background:var(--panel);border:1px solid #1f2430;border-radius:16px;padding:20px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .grow{flex:1}
+    label{font-size:14px;color:var(--muted);}
+    input[type="text"]{
+      width:100%;padding:12px 14px;border-radius:12px;border:1px solid #262b36;background:#0d0f14;color:#e6e6e6;
+    }
+    button{
+      border:0;border-radius:14px;padding:12px 16px;font-weight:700;cursor:pointer;
+      background:#1a90ff;color:#fff;transition:transform .02s ease;
+    }
+    button:active{transform:translateY(1px)}
+    button.secondary{background:#2b323f}
+    button.danger{background:var(--danger)}
+    button.ok{background:var(--ok);color:#0a0a0a}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#1a2130;color:#cbd5e1;font-size:12px}
+    .small{font-size:12px}
+    .muted{color:#94a3b8}
+    .history{display:grid;gap:10px}
+    .hist-item{background:#0d1017;border:1px solid #1f2430;border-radius:12px;padding:12px}
+    .transcript{white-space:pre-wrap;background:#0d0f14;border:1px solid #1f2430;border-radius:10px;padding:10px}
+    .hr{height:1px;background:#1f2430;margin:12px 0}
+    /* Simple modal */
+    .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:9999}
+    .modal{max-width:560px;width:100%;background:var(--panel);border:1px solid #1f2430;border-radius:16px;padding:18px}
+    .list{display:grid;gap:8px;margin:10px 0}
+    .list-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #1f2430;border-radius:10px;background:#0d0f14}
+  </style>
+</head>
+<body>
+<!-- AUTH SECTION -->
+<div id="authSection" class="wrap" style="display:none">
+  <div class="card">
+    <h2 style="margin:0 0 12px 0">Login Required</h2>
+    <div class="sub" style="margin-bottom:18px">Please sign in to access your student data.</div>
+    <div class="row">
+      <input id="emailInput" type="email" placeholder="Enter your email" />
+      <button id="loginBtn" class="big ok">Sign In</button>
+    </div>
+    <div id="authMessage" class="sub" style="margin-top:12px; color: var(--warn)"></div>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until authenticated) -->
+<div id="appSection" class="wrap" style="display:none">
+  <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div class="row" style="align-items:center;gap:10px">
+      <button id="backBtn" class="secondary">← Back</button>
+      <h2 id="studentTitle" style="margin:0">Student</h2>
+      <span id="sessionCountPill" class="pill">0 sessions</span>
+    </div>
+    <div class="row">
+      <button id="recordForBtn">Record for Student</button>
+      <button id="renameBtn" class="secondary">Rename</button>
+      <button id="deleteBtn" class="danger">Delete Student</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+      <strong>Sessions</strong>
+      <div class="row small muted">
+        <span id="studentIdText"></span>
+      </div>
+    </div>
+    <div id="sessions" class="history"></div>
+  </div>
+</div>
+
+<!-- Delete student modal -->
+<div id="delBack" class="modal-back" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h3 style="margin:0">Delete Student</h3>
+      <button id="delClose" class="secondary">Close</button>
+    </div>
+    <div class="muted">Choose what to do with this student's sessions.</div>
+    <div class="hr"></div>
+    <div class="list">
+      <label class="list-item">
+        <input type="radio" name="delMode" value="reassign" checked>
+        <div class="grow">
+          <div><strong>Reassign sessions</strong></div>
+          <div class="small muted">Move all sessions to another student (or Unassigned)</div>
+          <div class="row" style="margin-top:8px">
+            <select id="reassignSelect"></select>
+            <button id="createUnassigned" class="secondary">Add “Unassigned”</button>
+          </div>
+        </div>
+      </label>
+      <label class="list-item">
+        <input type="radio" name="delMode" value="delete">
+        <div class="grow">
+          <div><strong>Delete sessions</strong></div>
+          <div class="small muted">Remove the student and all their sessions (cannot be undone)</div>
+        </div>
+      </label>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:10px">
+      <button id="delConfirm" class="danger">Delete Student</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  // ===== SUPABASE CONFIG =====
+  const SUPABASE_URL = 'https://fuzhshhbmqmkqjdakalg.supabase.co'
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1emhzaGhibXFta3FqZGFrYWxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDY1NzUsImV4cCI6MjA3NDI4MjU3NX0.43jA6eCWf8QL69FYPDt82y3RLaAcnhiIFFNwPCxjgBM'
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+  // ===== AUTH DOM =====
+  const authSection = document.getElementById('authSection')
+  const appSection = document.getElementById('appSection')
+  const emailInput = document.getElementById('emailInput')
+  const loginBtn = document.getElementById('loginBtn')
+  const authMessage = document.getElementById('authMessage')
+
+  // ===== Helpers =====
+  const $ = sel => document.querySelector(sel);
+  const params = new URLSearchParams(location.search);
+  const studentId = params.get('id') || '';
+
+  function fmtTime(ms){
+    const s = Math.floor((ms||0)/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return `${mm}:${ss}`;
+  }
+  function cleanName(n){ return (n||'').trim().replace(/\s+/g,' ').slice(0,64); }
+
+  async function getStudents(){
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data || []
+    } catch (e) {
+      console.error('Error getting students:', e)
+      return []
+    }
+  }
+
+  async function getStudentById(id){
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      return data
+    } catch (e) {
+      console.error('Error getting student:', e)
+      return null
+    }
+  }
+  function setCurrentStudent(id){
+    localStorage.setItem('currentStudentId', id||'');
+  }
+
+  async function getStudentSessions(studentId){
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data || []
+    } catch (e) {
+      console.error('Error getting student sessions:', e)
+      return []
+    }
+  }
+
+  async function readSession(id){
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      return data
+    } catch (e) {
+      console.error('Error reading session:', e)
+      return null
+    }
+  }
+
+  async function deleteSession(id){
+    try {
+      await supabase.from('sessions').delete().eq('id', id);
+    } catch (e) {
+      console.error('Error deleting session:', e)
+    }
+  }
+
+  // ===== OpenAI summary (same model/flow as main) =====
+  function getOpenAIKey(){
+    const k = localStorage.getItem('openai_api_key');
+    if (!k) throw new Error('OpenAI key not set.');
+    return k;
+  }
+  const OPENAI_MODEL = 'gpt-5-mini';
+  const SUMMARY_INSTRUCTIONS = `You are an expert Arabic–English lesson summarizer. Output ONLY Markdown with the sections requested.`;
+  const SUMMARY_PROMPT = `I will give you a transcript of an Arabic–English language lesson.
+Please create a structured summary in the style of a lesson note.
+The summary must include:
+
+Vocabulary & Phrases table (Arabic, meaning, example sentence).
+
+Cultural Notes (if any appear).
+
+Grammar Highlights (rules, corrections, examples).
+
+Key Expressions & Functional Language (important ready-to-use phrases grouped by function: asking, agreeing, disagreeing, giving opinions, etc.).
+
+Practice Sentences or a Mini-Dialogue using the new vocabulary and grammar in natural context.
+
+Make it clear, organized, and reusable for teaching. Use Markdown headings and tables.`;
+
+  async function openaiSummarize(markdownPrompt) {
+    const key = getOpenAIKey();
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        temperature: 1,
+        messages: [
+          { role: 'system', content: SUMMARY_INSTRUCTIONS },
+          { role: 'user', content: markdownPrompt }
+        ]
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data?.error?.message || 'OpenAI API error');
+    return data?.choices?.[0]?.message?.content?.trim() || '';
+  }
+  function buildSummaryUserPrompt(transcript){
+    return `${SUMMARY_PROMPT}\n\n---\nTRANSCRIPT:\n${transcript}`;
+  }
+
+  // ===== UI DOM =====
+  const studentTitle = $('#studentTitle');
+  const sessionCountPill = $('#sessionCountPill');
+  const studentIdText = $('#studentIdText');
+  const sessionsEl = $('#sessions');
+
+  const backBtn = $('#backBtn');
+  const recordForBtn = $('#recordForBtn');
+  const renameBtn = $('#renameBtn');
+  const deleteBtn = $('#deleteBtn');
+
+  // delete modal
+  const delBack = $('#delBack');
+  const delClose = $('#delClose');
+  const delConfirm = $('#delConfirm');
+  const reassignSelect = $('#reassignSelect');
+  const createUnassigned = $('#createUnassigned');
+
+  // ===== Main App Logic =====
+  let student = null; // Declare student variable in outer scope
+
+  async function initializeApp() {
+    // ===== Load student =====
+    student = await getStudentById(studentId);
+    if (!student){
+      appSection.innerHTML = '<div class="card">Student not found.</div>';
+      return;
+    }
+    studentTitle.textContent = 'Student — ' + student.name;
+    studentIdText.textContent = student.id;
+
+  // ===== Render sessions =====
+  async function render(){
+    const sessions = await getStudentSessions(studentId);
+    sessionCountPill.textContent = `${sessions.length} session${sessions.length===1?'':'s'}`;
+    sessionsEl.innerHTML = '';
+
+    if (sessions.length===0){
+      const div = document.createElement('div');
+      div.className = 'muted';
+      div.textContent = 'No sessions yet. Click "Record for Student".';
+      sessionsEl.appendChild(div);
+      return;
+    }
+
+    sessions.forEach(s => {
+      const hasSummary = !!s.summary_md;
+      const div = document.createElement('div');
+      div.className = 'hist-item';
+      div.innerHTML = `
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <div><strong>${s.timestamp}</strong></div>
+            <div class="small muted">${fmtTime(s.duration_ms || 0)} — ${s.id}</div>
+          </div>
+          <div class="row">
+            <button data-act="view" data-id="${s.id}" class="secondary">View</button>
+            <button data-act="copy" data-id="${s.id}" class="secondary">Copy</button>
+            <button data-act="dl" data-id="${s.id}" class="secondary">Export .txt</button>
+            <button data-act="move" data-id="${s.id}" class="secondary">Move</button>
+            <button data-act="del" data-id="${s.id}" class="danger">Delete</button>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
+          <span class="small muted" style="margin-right:auto">Summary:</span>
+          <button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Refresh' : 'Summary'}</button>
+          <button data-act="sumview" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>View</button>
+          <button data-act="sumcopy" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Copy .md</button>
+          <button data-act="sumdl" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Export .md</button>
+        </div>
+
+        <pre id="p-${s.id}" style="display:none;margin-top:10px" class="transcript small"></pre>
+        <pre id="s-${s.id}" style="display:none;margin-top:10px" class="transcript small">${hasSummary ? (s.summary_md || '') : ''}</pre>
+      `;
+      sessionsEl.appendChild(div);
+    });
+
+    // attach actions
+    sessionsEl.querySelectorAll('button').forEach(btn=>{
+      btn.onclick = async () => {
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+        const s = await readSession(id);
+        if (!s) return;
+
+        if (act==='view'){
+          const pre = document.getElementById('p-'+id);
+          pre.textContent = s.transcript || '';
+          pre.style.display = pre.style.display==='none' ? 'block' : 'none';
+        } else if (act==='copy'){
+          await navigator.clipboard.writeText(s.transcript || '');
+          alert('Copied.');
+        } else if (act==='dl'){
+          const blob = new Blob([`[${s.timestamp}] (${fmtTime(s.duration_ms||0)})\n\n${s.transcript||''}`], {type:'text/plain'});
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${(s.id||'session')}.txt`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        } else if (act==='del'){
+          if (!confirm('Delete this session?')) return;
+          await deleteSession(id);
+          await render();
+        } else if (act==='move'){
+          const targetName = prompt('Move to which student? Type the name exactly (or leave blank to cancel):','');
+          const name = cleanName(targetName||'');
+          if (!name) return;
+          const all = await getStudents();
+          let target = all.find(x => x.name.toLowerCase()===name.toLowerCase());
+          if (!target){
+            if (!confirm(`Create new student "${name}"?`)) return;
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) { alert('Not authenticated'); return; }
+
+            const { data, error } = await supabase
+              .from('students')
+              .insert([{
+                name,
+                owner_user_id: user.id
+              }])
+              .select()
+              .single()
+            if (error) { alert('Failed to create student'); return; }
+            target = data;
+          }
+          // Update session's student_id
+          await supabase
+            .from('sessions')
+            .update({ student_id: target.id })
+            .eq('id', id)
+          await render();
+        } else if (act==='sum'){
+          try{
+            btn.disabled = true; btn.textContent = 'Summarizing…';
+            const md = await openaiSummarize(buildSummaryUserPrompt(s.transcript || ''));
+            await supabase
+              .from('sessions')
+              .update({ summary_md: md || '' })
+              .eq('id', id)
+            await render();
+            alert('Summary ready.');
+          } catch(e){
+            console.error(e); alert('Failed: ' + e.message);
+          } finally {
+            btn.disabled = false; btn.textContent = 'Refresh';
+          }
+        } else if (act==='sumview'){
+          if (!s.summary_md) return;
+          const pre = document.getElementById('s-'+id);
+          pre.style.display = pre.style.display==='none' ? 'block' : 'none';
+        } else if (act==='sumcopy'){
+          if (!s.summary_md) return;
+          await navigator.clipboard.writeText(s.summary_md);
+          alert('Summary copied.');
+        } else if (act==='sumdl'){
+          if (!s.summary_md) return;
+          const blob = new Blob([s.summary_md], {type:'text/markdown'});
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${(s.id||'session')}-summary.md`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }
+      };
+    });
+  }
+
+  // Initial render
+  await render();
+  } // End initializeApp
+
+  // ===== Header actions =====
+  backBtn.onclick = () => { location.href = 'index.html'; };
+  recordForBtn.onclick = () => {
+    setCurrentStudent(studentId);
+    alert('Current student set to: ' + student.name);
+    location.href = 'index.html';
+  };
+  renameBtn.onclick = async () => {
+    const nm = cleanName(prompt('New name:', student.name) || '');
+    if (!nm || nm === student.name) return;
+    await supabase
+      .from('students')
+      .update({ name: nm })
+      .eq('id', studentId)
+    student.name = nm;
+    studentTitle.textContent = 'Student — ' + nm;
+    await render();
+  };
+
+  // ===== Delete student flow =====
+  async function openDeleteModal(){
+    // build reassign select
+    reassignSelect.innerHTML = '';
+    const list = (await getStudents()).filter(x => x.id !== studentId);
+    if (list.length===0){
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No other students';
+      reassignSelect.appendChild(opt);
+    } else {
+      list.forEach(s=>{
+        const o = document.createElement('option');
+        o.value = s.id; o.textContent = s.name;
+        reassignSelect.appendChild(o);
+      });
+    }
+    delBack.style.display = 'flex';
+  }
+  function closeDeleteModal(){ delBack.style.display = 'none'; }
+
+  createUnassigned.onclick = async () => {
+    const list = await getStudents();
+    let u = list.find(x => x.name.toLowerCase() === 'unassigned');
+    if (!u){
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { alert('Not authenticated'); return; }
+
+      const { data, error } = await supabase
+        .from('students')
+        .insert([{
+          name: 'Unassigned',
+          owner_user_id: user.id
+        }])
+        .select()
+        .single()
+      if (error) { alert('Failed to create Unassigned student'); return; }
+      u = data;
+    }
+    // add to select if missing
+    if (![...reassignSelect.options].some(o => o.value===u.id)){
+      const o = document.createElement('option');
+      o.value = u.id; o.textContent = 'Unassigned';
+      reassignSelect.appendChild(o);
+    }
+    reassignSelect.value = u.id;
+  };
+
+  deleteBtn.onclick = openDeleteModal;
+  delClose.onclick = closeDeleteModal;
+
+  delConfirm.onclick = async () => {
+    const mode = (document.querySelector('input[name="delMode"]:checked')||{}).value || 'reassign';
+    const sessions = await getStudentSessions(studentId);
+
+    if (mode==='delete'){
+      if (!confirm('Delete student and ALL sessions?')) return;
+      for (const session of sessions) {
+        await deleteSession(session.id);
+      }
+    } else {
+      const target = reassignSelect.value;
+      if (!target){ alert('Pick a target student (or add Unassigned).'); return; }
+      // move each session to target student
+      for (const session of sessions){
+        await supabase
+          .from('sessions')
+          .update({ student_id: target })
+          .eq('id', session.id)
+      }
+    }
+
+    // remove student entry
+    await supabase.from('students').delete().eq('id', studentId);
+    closeDeleteModal();
+    alert('Student removed.');
+    location.href = 'index.html';
+  };
+
+  // ===== AUTH LOGIC =====
+  async function checkAuth() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      showApp()
+    } else {
+      showAuth()
+    }
+  }
+
+  function showAuth() {
+    authSection.style.display = 'block'
+    appSection.style.display = 'none'
+  }
+
+  async function showApp() {
+    authSection.style.display = 'none'
+    appSection.style.display = 'block'
+    await initializeApp()
+  }
+
+  loginBtn.onclick = async () => {
+    const email = emailInput.value.trim()
+    if (!email) {
+      authMessage.textContent = 'Please enter your email'
+      return
+    }
+
+    try {
+      loginBtn.disabled = true
+      loginBtn.textContent = 'Sending...'
+      authMessage.textContent = 'Sending magic link to your email...'
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: 'http://localhost:3000/student.html' + window.location.search
+        }
+      })
+
+      if (error) throw error
+      authMessage.textContent = 'Check your email for the login link!'
+    } catch (error) {
+      authMessage.textContent = 'Error: ' + error.message
+    } finally {
+      loginBtn.disabled = false
+      loginBtn.textContent = 'Sign In'
+    }
+  }
+
+  // Listen for auth changes
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      showApp()
+    } else if (event === 'SIGNED_OUT') {
+      showAuth()
+    }
+  })
+
+  // Initialize
+  checkAuth()
+</script>
+</body>
+</html>
