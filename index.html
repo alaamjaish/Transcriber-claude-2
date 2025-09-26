@@ -91,6 +91,41 @@
     #authSection * {
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+
+    /* Generating status animation */
+    .generating-pill {
+      background: #1e40af !important;
+      color: #ffffff !important;
+      animation: pulse-generating 2s infinite;
+    }
+
+    @keyframes pulse-generating {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+
+    .generating-dots::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+
+    /* Green regenerate buttons */
+    .regenerate-btn {
+      background: #22c55e !important;
+      color: #ffffff !important;
+    }
+
+    .regenerate-btn:hover {
+      background: #16a34a !important;
+    }
   </style>
 </head>
 <body>
@@ -305,7 +340,7 @@
 
 <script type="module">
   import { SonioxClient } from 'https://unpkg.com/@soniox/speech-to-text-web?module';
-  import { getOpenAIKey, generateSummary, generateHomework, autoGenerateContent, isGenerating } from './ai-features/summarizer.js';
+  import { getOpenAIKey, generateSummary, generateHomework, autoGenerateContent, isGenerating, setGeneratingStatus, isEmpty, setEmptyStatus } from './ai-features/summarizer.js';
 
   // ===== SUPABASE CONFIG =====
   const SUPABASE_URL = 'https://fuzhshhbmqmkqjdakalg.supabase.co'
@@ -957,9 +992,22 @@
           stopAllTracks();
           setButtonsRecordingState(false);
 
-          // Auto-generate summary and homework in the background
+          // CHECK transcript FIRST, then set appropriate status
           if (sessionData && sessionData.id) {
-            autoGenerateContent(sessionData.id, (finalEl.textContent || '').trim(), supabase);
+            const transcript = (finalEl.textContent || '').trim();
+
+            if (!transcript) {
+              // Empty transcript - set empty status
+              setEmptyStatus(sessionData.id);
+              await renderHistory(); // Show empty notice
+            } else {
+              // Valid transcript - set generating status and start generation
+              setGeneratingStatus(sessionData.id);
+              await renderHistory(); // Show generating pills
+
+              // THEN start auto-generation in background
+              autoGenerateContent(sessionData.id, transcript, supabase);
+            }
           }
         },
         onError: (status, message) => {
@@ -1134,6 +1182,7 @@
       const hasSummary = !!s.summary_md;
       const hasHomework = !!s.homework_md;
       const generating = isGenerating(s.id);
+      const empty = isEmpty(s.id);
       const stu = s.student?.name || '—';
       const studentLine = s.student_id
         ? `<a href="student.html?id=${s.student_id}" class="small">student: ${stu}</a>`
@@ -1157,24 +1206,32 @@
 
         <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
           <span class="small sub" style="margin-right:auto">Summary:</span>
-          ${generating ?
-            '<span class="pill small" style="background:#1a5490; color:#ffffff">Generating...</span>' :
-            `<button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Regenerate' : 'Summary'}</button>`
+          ${empty ?
+            '<span class="pill small" style="background:#f59e0b; color:#ffffff">Empty transcript - no content generated</span>' :
+            generating ?
+              '<span class="pill small generating-pill generating-dots">Generating</span>' :
+              `<button data-act="sum" data-id="${s.id}" class="${hasSummary ? 'regenerate-btn' : 'secondary'}">${hasSummary ? 'Regenerate' : 'Summary'}</button>`
           }
-          <button data-act="sumview" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>View Summary</button>
-          <button data-act="sumcopy" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Copy .md</button>
-          <button data-act="sumdl" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Export .md</button>
+          ${hasSummary ? `
+            <button data-act="sumview" data-id="${s.id}" class="secondary">View Summary</button>
+            <button data-act="sumcopy" data-id="${s.id}" class="secondary">Copy .md</button>
+            <button data-act="sumdl" data-id="${s.id}" class="secondary">Export .md</button>
+          ` : ''}
         </div>
 
         <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
           <span class="small sub" style="margin-right:auto">Homework:</span>
-          ${generating ?
-            '<span class="pill small" style="background:#1a5490; color:#ffffff">Generating...</span>' :
-            `<button data-act="hw" data-id="${s.id}" class="secondary">${hasHomework ? 'Regenerate' : 'Homework'}</button>`
+          ${empty ?
+            '<span class="pill small" style="background:#f59e0b; color:#ffffff">Empty transcript - no content generated</span>' :
+            generating ?
+              '<span class="pill small generating-pill generating-dots">Generating</span>' :
+              `<button data-act="hw" data-id="${s.id}" class="${hasHomework ? 'regenerate-btn' : 'secondary'}">${hasHomework ? 'Regenerate' : 'Homework'}</button>`
           }
-          <button data-act="hwview" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>View Homework</button>
-          <button data-act="hwcopy" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Copy .md</button>
-          <button data-act="hwdl" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Export .md</button>
+          ${hasHomework ? `
+            <button data-act="hwview" data-id="${s.id}" class="secondary">View Homework</button>
+            <button data-act="hwcopy" data-id="${s.id}" class="secondary">Copy .md</button>
+            <button data-act="hwdl" data-id="${s.id}" class="secondary">Export .md</button>
+          ` : ''}
         </div>
 
         <pre id="p-${s.id}" style="display:none;margin-top:10px" class="transcript small"></pre>

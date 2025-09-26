@@ -3,68 +3,83 @@
 // Centralizes all OpenAI summarization logic
 
 // ===== OPENAI CONFIG =====
-export const OPENAI_MODEL = 'gpt-5-nano';
+export const OPENAI_MODEL = 'gpt-5-mini-2025-08-07';
 
-export const SUMMARY_INSTRUCTIONS = `You are an expert levant Arabic–English lesson summarizer. Output ONLY Markdown with the sections requested.`;
+export const SUMMARY_INSTRUCTIONS = `You are an expert AI assistant specialized in analyzing raw text transcripts from a voice recording application. Your primary goal is to intelligently discern the context of the conversation, categorize it into one of three types (Levantine Arabic Lesson, Professional Meeting, or General Conversation), and generate a structured, useful output tailored to that specific context. You must be able to handle potential inaccuracies from the speech-to-text engine.`;
 
-export const SUMMARY_PROMPT = `You will receive a transcript of a Levant Arabic–English lesson.
-Your task is to create a structured lesson summary in Syrian/Levantine Arabic only (no English except inside translation columns).
-The transcript may contain errors, typos, or misheard words.
-Always:
+export const SUMMARY_PROMPT =
+ `
+## **GENERAL INSTRUCTION: HANDLING TRANSCRIPTION ERRORS**
 
-Understand the context (Arabic learning).
+The input you receive is an automated transcription and may contain errors, typos, or nonsensical words. Your most crucial task is to use the overall context of the conversation to interpret and correct these mistakes. If a word does not make sense logically, grammatically, or contextually (e.g., a non-Arabic word in a language lesson, a nonsensical term in a business meeting), you have the authority to substitute it with the most probable intended word. Your output should reflect a coherent and logical understanding of the conversation.
+---
+## **CONTEXT ANALYSIS AND OUTPUT GENERATION**
+Analyze the provided transcript and determine which of the following three cases it represents. Then, generate the output ONLY in the format specified for that case.
+### **CASE 1: Levantine Arabic Lesson**
 
-Correct mistakes to natural Syrian Arabic.
+** Conditions for Identification:**
+* The transcript contains at least two distinct speakers (e.g., "Speaker 1:", "Speaker 2:").
+* The content is clearly educational and focuses on teaching or learning the Levantine dialect of Arabic. Look for keywords related to language, grammar, vocabulary, questions, and explanations.
+* The transcript is of a substantial length, indicating a full-fledged lesson rather than a brief test.
 
-Replace anything nonsensical with the intended meaning.
+** Required Output Format:**
+If you identify the transcript as a Levantine Arabic Lesson, generate the following:
 
-Output Format: (use Markdown headings and tables)
+**##  Lesson Summary**
 
-Vocabulary & Phrases
+**###  New Vocabulary**
+- **Word 1 (in Arabic script):** Meaning in English.
+- **Word 2 (in Arabic script):** Meaning in English.
+- *(List all new vocabulary words introduced)*
 
-Create a table with these columns:
+**###  Grammar Points**
+- A bulleted list explaining the grammatical rules and concepts that were discussed in the lesson.
+- Provide examples from the transcript where possible.
 
-Arabic (Levantine)	English Meaning	Example Sentence (Arabic)
-word/phrase 1	meaning	short natural Syrian example
-word/phrase 2	meaning	example
+**###  Key Expressions & Phrases**
+- A list of any new conversational phrases or expressions taught during the lesson.
+- Provide the phrase and its English translation/context.
 
-Include all key words and expressions taught or practiced in the lesson.
+---
 
-Cultural Notes
+### **CASE 2: Professional Meeting**
 
-List any cultural insights, customs, or usage tips mentioned in the lesson.
+** Conditions for Identification:**
+* The transcript contains at least two distinct speakers.
+* The content is professional in nature. Look for discussions about projects, tasks, deadlines, business strategy, or organizational matters.
+* The transcript is long enough to be considered a formal meeting.
 
-If nothing appears, write: (ما في ملاحظات ثقافية بهالدرس).
+** Required Output Format:**
+If you identify the transcript as a meeting, generate the following:
 
-Grammar Highlights
+**##  Meeting Summary**
 
-Explain rules or corrections that came up.
+**###  Key Discussion Points**
+- A concise, bulleted list of the main topics and conclusions discussed during the meeting.
 
-Give simple examples in Syrian Arabic.
+**###  Action Items & Deadlines**
+- **[Task/Action Item]:** Assigned to [Name/Role] - Due by [Date/Deadline].
+- *(List all clear action items, who is responsible, and any mentioned deadlines.)*
 
-Key Expressions & Functional Language
+**###  Participants & Roles Mentioned**
+- A list of names mentioned and their context or role in the discussion.
 
-Group ready-to-use phrases by function, for example:
+---
 
-Asking questions: …
+### **CASE 3: General Conversation / Other**
 
-Agreeing / Disagreeing: …
+** Conditions for Identification:**
+* This is the default case. It applies if the transcript does not meet the criteria for a Lesson or a Meeting.
+* This includes short test recordings (e.g., under 150 words), single-speaker monologues, or any random conversation.
 
-Giving opinions: …
+** Required Output Format:**
+If the transcript falls into this category, generate the following:
 
-Daily interactions: …
+**## General Summary**
+A brief, single-paragraph summary capturing the main points of what was said in the transcript.
 
-Practice Sentences / Mini-Dialogue
 
-Write a short natural conversation or 5–6 practice sentences using the new vocabulary and grammar.
-
-Critical Requirements
-
-Output only in Syrian/Levantine Arabic (Arabic script).
-
-Keep it clear, organized, and reusable for teaching.
-
-Correct transcription errors automatically.`;
+`;
 
 export const HOMEWORK_INSTRUCTIONS = `You are an expert language teacher creating homework assignments. Output ONLY Markdown with practical exercises based on the lesson content.`;
 
@@ -202,9 +217,21 @@ export function isGenerating(sessionId) {
   return getAutoGenStatus()[sessionId] === 'generating';
 }
 
+export function isEmpty(sessionId) {
+  return getAutoGenStatus()[sessionId] === 'empty';
+}
+
 export function isAutoGenComplete(sessionId) {
   const status = getAutoGenStatus()[sessionId];
   return status === 'complete' || status === 'error';
+}
+
+export function setGeneratingStatus(sessionId) {
+  setAutoGenStatus(sessionId, 'generating');
+}
+
+export function setEmptyStatus(sessionId) {
+  setAutoGenStatus(sessionId, 'empty');
 }
 
 // ===== AUTOMATIC CONTENT GENERATION =====
@@ -257,9 +284,9 @@ export async function autoGenerateContent(sessionId, transcript, supabase) {
     setAutoGenStatus(sessionId, 'complete');
     console.log(`Auto-generation complete for session ${sessionId}`);
 
-    // Trigger a history refresh if the renderHistory function exists
+    // Trigger a history refresh to show the completed state
     if (typeof window.renderHistoryRefresh === 'function') {
-      window.renderHistoryRefresh();
+      await window.renderHistoryRefresh();
     }
 
   } catch (error) {
