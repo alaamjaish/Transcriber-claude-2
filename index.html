@@ -306,6 +306,7 @@
 
 <script type="module">
   import { SonioxClient } from 'https://unpkg.com/@soniox/speech-to-text-web?module';
+  import { getOpenAIKey, generateSummary, generateHomework } from './ai-features/summarizer.js';
 
   // ===== SUPABASE CONFIG =====
   const SUPABASE_URL = 'https://fuzhshhbmqmkqjdakalg.supabase.co'
@@ -514,13 +515,6 @@
   function cloneSegments(){ return finalSegments.map(s => ({label:s.label, text:s.text})); }
 
   // ===== HELPER FUNCTIONS =====
-  function getOpenAIKey() {
-    const k = localStorage.getItem('openai_api_key');
-    if (!k) {
-      throw new Error('OpenAI key not set.');
-    }
-    return k;
-  }
 
   // ===== BYOK MODAL FUNCTIONS =====
   function showBYOKModal(blocking = false) {
@@ -1056,48 +1050,7 @@
   }
 
   // ====== OPENAI SUMMARY CONFIG ======
-  const OPENAI_MODEL = 'gpt-5-mini';
-  const SUMMARY_INSTRUCTIONS = `You are an expert Arabic–English lesson summarizer. Output ONLY Markdown with the sections requested.`;
-
-  const SUMMARY_PROMPT = `I will give you a transcript of an Arabic–English language lesson.
-Please create a structured summary in the style of a lesson note.
-The summary must include:
-
-Vocabulary & Phrases table (Arabic, meaning, example sentence).
-
-Cultural Notes (if any appear).
-
-Grammar Highlights (rules, corrections, examples).
-
-Key Expressions & Functional Language (important ready-to-use phrases grouped by function: asking, agreeing, disagreeing, giving opinions, etc.).
-
-Practice Sentences or a Mini-Dialogue using the new vocabulary and grammar in natural context.
-
-Make it clear, organized, and reusable for teaching. Use Markdown headings and tables.`;
-
-  async function openaiSummarize(markdownPrompt) {
-    const key = getOpenAIKey();
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        temperature: 1,
-        messages: [
-          { role: 'system', content: SUMMARY_INSTRUCTIONS },
-          { role: 'user', content: markdownPrompt }
-        ]
-      })
-    });
-    const data = await resp.json();
-    if (!resp.ok) { throw new Error(data?.error?.message || 'OpenAI API error'); }
-    const text = data?.choices?.[0]?.message?.content?.trim() || '';
-    return text;
-  }
-
-  function buildSummaryUserPrompt(transcript) {
-    return `${SUMMARY_PROMPT}\n\n---\nTRANSCRIPT:\n${transcript}`;
-  }
+  // AI functions now imported from ./ai-features/summarizer.js
 
   async function summarizeSessionById(sessionId, btnElem) {
     // Get session from Supabase
@@ -1113,8 +1066,7 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
 
     try {
       if (btnElem) { btnElem.disabled = true; btnElem.textContent = 'Summarizing…'; }
-      const userPrompt = buildSummaryUserPrompt(s.transcript || '');
-      const md = await openaiSummarize(userPrompt);
+      const md = await generateSummary(s.transcript || '');
 
       // Update summary in Supabase
       await supabase
@@ -1130,7 +1082,41 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
       console.error(e);
       alert('Failed to summarize: ' + e.message);
     } finally {
-      if (btnElem) { btnElem.disabled = false; btnElem.textContent = 'Refresh'; }
+      if (btnElem) { btnElem.disabled = false; btnElem.textContent = 'Regenerate'; }
+    }
+  }
+
+  async function homeworkSessionById(sessionId, btnElem) {
+    // Get session from Supabase
+    const { data: s, error } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
+
+    if (error || !s) return alert('Session not found.');
+
+    if (s.homework_md && !confirm('Homework already exists. Regenerate it?')) return;
+
+    try {
+      if (btnElem) { btnElem.disabled = true; btnElem.textContent = 'Generating…'; }
+      const md = await generateHomework(s.transcript || '');
+
+      // Update homework in Supabase
+      await supabase
+        .from('sessions')
+        .update({ homework_md: md || '' })
+        .eq('id', sessionId)
+
+      await renderHistory();
+      const pre = document.getElementById('h-' + sessionId);
+      if (pre) { pre.textContent = md || ''; pre.style.display = 'block'; }
+      alert('Homework ready.');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to generate homework: ' + e.message);
+    } finally {
+      if (btnElem) { btnElem.disabled = false; btnElem.textContent = 'Homework'; }
     }
   }
 
@@ -1141,6 +1127,7 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
     historyEl.innerHTML = '';
     sessions.forEach(s => {
       const hasSummary = !!s.summary_md;
+      const hasHomework = !!s.homework_md;
       const stu = s.student?.name || '—';
       const studentLine = s.student_id
         ? `<a href="student.html?id=${s.student_id}" class="small">student: ${stu}</a>`
@@ -1164,14 +1151,23 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
 
         <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
           <span class="small sub" style="margin-right:auto">Summary:</span>
-          <button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Refresh' : 'Summary'}</button>
+          <button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Regenerate' : 'Summary'}</button>
           <button data-act="sumview" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>View Summary</button>
           <button data-act="sumcopy" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Copy .md</button>
           <button data-act="sumdl" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Export .md</button>
         </div>
 
+        <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
+          <span class="small sub" style="margin-right:auto">Homework:</span>
+          <button data-act="hw" data-id="${s.id}" class="secondary">${hasHomework ? 'Regenerate' : 'Homework'}</button>
+          <button data-act="hwview" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>View Homework</button>
+          <button data-act="hwcopy" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Copy .md</button>
+          <button data-act="hwdl" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Export .md</button>
+        </div>
+
         <pre id="p-${s.id}" style="display:none;margin-top:10px" class="transcript small"></pre>
         <pre id="s-${s.id}" style="display:none;margin-top:10px" class="transcript small">${hasSummary ? (s.summary_md || '') : ''}</pre>
+        <pre id="h-${s.id}" style="display:none;margin-top:10px" class="transcript small">${hasHomework ? (s.homework_md || '') : ''}</pre>
       `;
       historyEl.appendChild(div);
     });
@@ -1227,6 +1223,24 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
           a.download = `${(s.id||'session')}-summary.md`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        } else if (act==='hw'){
+          await homeworkSessionById(id, btn);
+        } else if (act==='hwview'){
+          if (!s.homework_md) return;
+          const pre = document.getElementById('h-'+id);
+          pre.style.display = pre.style.display==='none' ? 'block' : 'none';
+        } else if (act==='hwcopy'){
+          if (!s.homework_md) return;
+          await navigator.clipboard.writeText(s.homework_md);
+          alert('Homework copied.');
+        } else if (act==='hwdl'){
+          if (!s.homework_md) return;
+          const blob = new Blob([s.homework_md], {type:'text/markdown'});
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${(s.id||'session')}-homework.md`;
           a.click();
           URL.revokeObjectURL(a.href);
         }

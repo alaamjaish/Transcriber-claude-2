@@ -158,6 +158,8 @@
 </div>
 
 <script type="module">
+  import { getOpenAIKey, generateSummary, generateHomework } from './ai-features/summarizer.js';
+
   // ===== SUPABASE CONFIG =====
   const SUPABASE_URL = 'https://fuzhshhbmqmkqjdakalg.supabase.co'
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1emhzaGhibXFta3FqZGFrYWxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDY1NzUsImV4cCI6MjA3NDI4MjU3NX0.43jA6eCWf8QL69FYPDt82y3RLaAcnhiIFFNwPCxjgBM'
@@ -267,11 +269,6 @@
     return k
   }
 
-  function getOpenAIKey(){
-    const k = localStorage.getItem('openai_api_key');
-    if (!k) throw new Error('OpenAI key not set.');
-    return k;
-  }
 
   function checkBYOKKeys() {
     const soniox = localStorage.getItem('soniox_api_key')
@@ -348,46 +345,7 @@
     return true
   }
 
-  // ===== OpenAI summary (same model/flow as main) =====
-  const OPENAI_MODEL = 'gpt-5-mini';
-  const SUMMARY_INSTRUCTIONS = `You are an expert Arabic–English lesson summarizer. Output ONLY Markdown with the sections requested.`;
-  const SUMMARY_PROMPT = `I will give you a transcript of an Arabic–English language lesson.
-Please create a structured summary in the style of a lesson note.
-The summary must include:
-
-Vocabulary & Phrases table (Arabic, meaning, example sentence).
-
-Cultural Notes (if any appear).
-
-Grammar Highlights (rules, corrections, examples).
-
-Key Expressions & Functional Language (important ready-to-use phrases grouped by function: asking, agreeing, disagreeing, giving opinions, etc.).
-
-Practice Sentences or a Mini-Dialogue using the new vocabulary and grammar in natural context.
-
-Make it clear, organized, and reusable for teaching. Use Markdown headings and tables.`;
-
-  async function openaiSummarize(markdownPrompt) {
-    const key = getOpenAIKey();
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        temperature: 1,
-        messages: [
-          { role: 'system', content: SUMMARY_INSTRUCTIONS },
-          { role: 'user', content: markdownPrompt }
-        ]
-      })
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data?.error?.message || 'OpenAI API error');
-    return data?.choices?.[0]?.message?.content?.trim() || '';
-  }
-  function buildSummaryUserPrompt(transcript){
-    return `${SUMMARY_PROMPT}\n\n---\nTRANSCRIPT:\n${transcript}`;
-  }
+  // ===== OpenAI summary (now imported from ai-features/summarizer.js) =====
 
   // ===== UI DOM =====
   const studentTitle = $('#studentTitle');
@@ -437,6 +395,7 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
 
     sessions.forEach(s => {
       const hasSummary = !!s.summary_md;
+      const hasHomework = !!s.homework_md;
       const div = document.createElement('div');
       div.className = 'hist-item';
       div.innerHTML = `
@@ -456,14 +415,23 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
 
         <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
           <span class="small muted" style="margin-right:auto">Summary:</span>
-          <button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Refresh' : 'Summary'}</button>
+          <button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Regenerate' : 'Summary'}</button>
           <button data-act="sumview" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>View</button>
           <button data-act="sumcopy" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Copy .md</button>
           <button data-act="sumdl" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Export .md</button>
         </div>
 
+        <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
+          <span class="small muted" style="margin-right:auto">Homework:</span>
+          <button data-act="hw" data-id="${s.id}" class="secondary">${hasHomework ? 'Regenerate' : 'Homework'}</button>
+          <button data-act="hwview" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>View</button>
+          <button data-act="hwcopy" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Copy .md</button>
+          <button data-act="hwdl" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Export .md</button>
+        </div>
+
         <pre id="p-${s.id}" style="display:none;margin-top:10px" class="transcript small"></pre>
         <pre id="s-${s.id}" style="display:none;margin-top:10px" class="transcript small">${hasSummary ? (s.summary_md || '') : ''}</pre>
+        <pre id="h-${s.id}" style="display:none;margin-top:10px" class="transcript small">${hasHomework ? (s.homework_md || '') : ''}</pre>
       `;
       sessionsEl.appendChild(div);
     });
@@ -525,7 +493,7 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
         } else if (act==='sum'){
           try{
             btn.disabled = true; btn.textContent = 'Summarizing…';
-            const md = await openaiSummarize(buildSummaryUserPrompt(s.transcript || ''));
+            const md = await generateSummary(s.transcript || '');
             await supabase
               .from('sessions')
               .update({ summary_md: md || '' })
@@ -535,7 +503,7 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
           } catch(e){
             console.error(e); alert('Failed: ' + e.message);
           } finally {
-            btn.disabled = false; btn.textContent = 'Refresh';
+            btn.disabled = false; btn.textContent = 'Regenerate';
           }
         } else if (act==='sumview'){
           if (!s.summary_md) return;
@@ -551,6 +519,37 @@ Make it clear, organized, and reusable for teaching. Use Markdown headings and t
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
           a.download = `${(s.id||'session')}-summary.md`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+        } else if (act==='hw'){
+          try{
+            btn.disabled = true; btn.textContent = 'Generating…';
+            const md = await generateHomework(s.transcript || '');
+            await supabase
+              .from('sessions')
+              .update({ homework_md: md || '' })
+              .eq('id', id)
+            await render();
+            alert('Homework ready.');
+          } catch(e){
+            console.error(e); alert('Failed: ' + e.message);
+          } finally {
+            btn.disabled = false; btn.textContent = 'Homework';
+          }
+        } else if (act==='hwview'){
+          if (!s.homework_md) return;
+          const pre = document.getElementById('h-'+id);
+          pre.style.display = pre.style.display==='none' ? 'block' : 'none';
+        } else if (act==='hwcopy'){
+          if (!s.homework_md) return;
+          await navigator.clipboard.writeText(s.homework_md);
+          alert('Homework copied.');
+        } else if (act==='hwdl'){
+          if (!s.homework_md) return;
+          const blob = new Blob([s.homework_md], {type:'text/markdown'});
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `${(s.id||'session')}-homework.md`;
           a.click();
           URL.revokeObjectURL(a.href);
         }
