@@ -180,3 +180,90 @@ export async function generateHomework(transcript) {
   const homework = await openaiHomework(userPrompt);
   return homework;
 }
+
+// ===== AUTO-GENERATION STATUS TRACKING =====
+const AUTO_GEN_STATUS_KEY = 'auto_generation_status';
+
+function getAutoGenStatus() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTO_GEN_STATUS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function setAutoGenStatus(sessionId, status) {
+  const current = getAutoGenStatus();
+  current[sessionId] = status;
+  localStorage.setItem(AUTO_GEN_STATUS_KEY, JSON.stringify(current));
+}
+
+export function isGenerating(sessionId) {
+  return getAutoGenStatus()[sessionId] === 'generating';
+}
+
+export function isAutoGenComplete(sessionId) {
+  const status = getAutoGenStatus()[sessionId];
+  return status === 'complete' || status === 'error';
+}
+
+// ===== AUTOMATIC CONTENT GENERATION =====
+export async function autoGenerateContent(sessionId, transcript, supabase) {
+  // Guard against empty transcript
+  if (!transcript || !transcript.trim()) {
+    console.log('Auto-generation skipped: empty transcript');
+    return;
+  }
+
+  // Check if OpenAI key exists
+  try {
+    getOpenAIKey();
+  } catch (error) {
+    console.error('Auto-generation skipped: OpenAI key not configured');
+    setAutoGenStatus(sessionId, 'error');
+    return;
+  }
+
+  // Mark as generating
+  setAutoGenStatus(sessionId, 'generating');
+  console.log(`Auto-generating content for session ${sessionId}...`);
+
+  try {
+    // Generate both summary and homework in parallel
+    const [summaryMd, homeworkMd] = await Promise.all([
+      generateSummary(transcript).catch(err => {
+        console.error('Summary generation failed:', err);
+        return null; // Don't fail the whole process if one fails
+      }),
+      generateHomework(transcript).catch(err => {
+        console.error('Homework generation failed:', err);
+        return null;
+      })
+    ]);
+
+    // Update the session in Supabase with both results
+    const updates = {};
+    if (summaryMd) updates.summary_md = summaryMd;
+    if (homeworkMd) updates.homework_md = homeworkMd;
+
+    if (Object.keys(updates).length > 0) {
+      await supabase
+        .from('sessions')
+        .update(updates)
+        .eq('id', sessionId);
+    }
+
+    // Mark as complete
+    setAutoGenStatus(sessionId, 'complete');
+    console.log(`Auto-generation complete for session ${sessionId}`);
+
+    // Trigger a history refresh if the renderHistory function exists
+    if (typeof window.renderHistoryRefresh === 'function') {
+      window.renderHistoryRefresh();
+    }
+
+  } catch (error) {
+    console.error('Auto-generation failed:', error);
+    setAutoGenStatus(sessionId, 'error');
+  }
+}

@@ -204,7 +204,6 @@
     <div class="row" style="margin-top:12px">
       <button id="settingsBtn" class="secondary">Settings</button>
       <button id="studentsBtn" class="secondary">Students</button>
-      <button id="clearAllBtn" class="secondary">Clear All Sessions</button>
     </div>
   </div>
 
@@ -306,7 +305,7 @@
 
 <script type="module">
   import { SonioxClient } from 'https://unpkg.com/@soniox/speech-to-text-web?module';
-  import { getOpenAIKey, generateSummary, generateHomework } from './ai-features/summarizer.js';
+  import { getOpenAIKey, generateSummary, generateHomework, autoGenerateContent, isGenerating } from './ai-features/summarizer.js';
 
   // ===== SUPABASE CONFIG =====
   const SUPABASE_URL = 'https://fuzhshhbmqmkqjdakalg.supabase.co'
@@ -734,6 +733,7 @@
           student:students(name)
         `)
         .order('created_at', { ascending: false })
+        .limit(5)
 
       if (error) throw error
       return data || []
@@ -953,9 +953,14 @@
           running = false;
           setStatus('finished');
           stopTimer();
-          await saveSession((finalEl.textContent || '').trim(), Date.now() - startedAt);
+          const sessionData = await saveSession((finalEl.textContent || '').trim(), Date.now() - startedAt);
           stopAllTracks();
           setButtonsRecordingState(false);
+
+          // Auto-generate summary and homework in the background
+          if (sessionData && sessionData.id) {
+            autoGenerateContent(sessionData.id, (finalEl.textContent || '').trim(), supabase);
+          }
         },
         onError: (status, message) => {
           console.error('Soniox error:', status, message);
@@ -1128,6 +1133,7 @@
     sessions.forEach(s => {
       const hasSummary = !!s.summary_md;
       const hasHomework = !!s.homework_md;
+      const generating = isGenerating(s.id);
       const stu = s.student?.name || '—';
       const studentLine = s.student_id
         ? `<a href="student.html?id=${s.student_id}" class="small">student: ${stu}</a>`
@@ -1151,7 +1157,10 @@
 
         <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
           <span class="small sub" style="margin-right:auto">Summary:</span>
-          <button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Regenerate' : 'Summary'}</button>
+          ${generating ?
+            '<span class="pill small" style="background:#1a5490; color:#ffffff">Generating...</span>' :
+            `<button data-act="sum" data-id="${s.id}" class="secondary">${hasSummary ? 'Regenerate' : 'Summary'}</button>`
+          }
           <button data-act="sumview" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>View Summary</button>
           <button data-act="sumcopy" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Copy .md</button>
           <button data-act="sumdl" data-id="${s.id}" class="secondary" ${hasSummary ? '' : 'disabled'}>Export .md</button>
@@ -1159,7 +1168,10 @@
 
         <div class="row" style="margin-top:8px; justify-content:flex-end; gap:8px">
           <span class="small sub" style="margin-right:auto">Homework:</span>
-          <button data-act="hw" data-id="${s.id}" class="secondary">${hasHomework ? 'Regenerate' : 'Homework'}</button>
+          ${generating ?
+            '<span class="pill small" style="background:#1a5490; color:#ffffff">Generating...</span>' :
+            `<button data-act="hw" data-id="${s.id}" class="secondary">${hasHomework ? 'Regenerate' : 'Homework'}</button>`
+          }
           <button data-act="hwview" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>View Homework</button>
           <button data-act="hwcopy" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Copy .md</button>
           <button data-act="hwdl" data-id="${s.id}" class="secondary" ${hasHomework ? '' : 'disabled'}>Export .md</button>
@@ -1249,12 +1261,9 @@
   }
   await renderHistory();
 
-  document.getElementById('clearAllBtn').onclick = async () => {
-    if (!confirm('Delete all saved sessions?')) return;
-    // Delete all sessions from Supabase
-    await supabase.from('sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    await renderHistory();
-  };
+  // Expose renderHistory globally so autoGenerateContent can refresh the UI
+  window.renderHistoryRefresh = renderHistory;
+
 
   // ===== AUTH LOGIC =====
   async function checkAuth() {
