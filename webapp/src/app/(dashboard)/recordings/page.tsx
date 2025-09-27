@@ -6,6 +6,9 @@ import type { Session } from "@/lib/types";
 import { RecordingWorkspaceShell } from "./components/RecordingWorkspaceShell";
 import { SessionList } from "./components/SessionList";
 
+// Force dynamic rendering to prevent caching issues
+export const dynamic = "force-dynamic";
+
 const controls = [
   {
     label: "Start recording",

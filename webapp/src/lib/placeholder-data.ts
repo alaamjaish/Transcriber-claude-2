@@ -1,4 +1,4 @@
-﻿import { GenerationStatus, type Session, type Student, type TeacherProfile } from "@/lib/types";
+import { GenerationStatus, type Session, type Student, type TeacherProfile } from "@/lib/types";
 
 const now = new Date();
 
@@ -28,10 +28,15 @@ export const mockSessions: Session[] = [
     studentName: "Layla Hasan",
     recordedAt: daysAgo(1),
     durationMs: 36 * 60 * 1000,
+    transcript: "Speaker 1: marhaba, keef halak? (Hello, how are you?) Speaker 2: ahlan, ana mneeh, shukran. (Hi, I'm good, thank you.) Speaker 1: btitakalam arabi? (Do you speak Arabic?) Speaker 2: shway shway, ba3deni bata3alam. (A little, I'm still learning.)",
     transcriptPreview: "Speaker 1: marhaba... Speaker 2: ahlan...",
     generationStatus: "complete",
     summaryReady: true,
     homeworkReady: true,
+    summaryMd: "## Session Summary\n\nGreeting conversation practice with basic introductions.",
+    homeworkMd: "## Practice Homework\n\n1. Practice greeting phrases\n2. Review vocabulary",
+    aiGenerationStatus: "complete",
+    aiGenerationStartedAt: null,
   },
   {
     id: "sess_alpha",
@@ -39,10 +44,15 @@ export const mockSessions: Session[] = [
     studentName: "Omar Saleh",
     recordedAt: daysAgo(3),
     durationMs: 22 * 60 * 1000,
+    transcript: "Short pronunciation drill covering the alphabet and basic sounds in Arabic language learning session.",
     transcriptPreview: "Short pronunciation drill covering the ",
     generationStatus: "generating",
     summaryReady: false,
     homeworkReady: false,
+    summaryMd: null,
+    homeworkMd: null,
+    aiGenerationStatus: "generating",
+    aiGenerationStartedAt: daysAgo(0.1),
   },
   {
     id: "sess_empty",
@@ -50,10 +60,15 @@ export const mockSessions: Session[] = [
     studentName: "Unassigned",
     recordedAt: daysAgo(6),
     durationMs: 11 * 60 * 1000,
+    transcript: "",
     transcriptPreview: "",
     generationStatus: "empty",
     summaryReady: false,
     homeworkReady: false,
+    summaryMd: null,
+    homeworkMd: null,
+    aiGenerationStatus: "idle",
+    aiGenerationStartedAt: null,
   },
 ];
 
@@ -71,3 +86,4 @@ export function statusLabel(status: GenerationStatus): string {
       return "Queued";
   }
 }
+

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { generateSessionArtifactsAction } from "@/app/actions/generation";
 import { saveSessionAction } from "@/app/actions/sessions";
 import { useSelectedStudent } from "@/components/layout/SelectedStudentProvider";
 
@@ -25,15 +26,17 @@ export function RecordingWorkspaceShell() {
   const mixer = useAudioMixer();
   const soniox = useSonioxStream();
   const router = useRouter();
+
   const [includeSystemAudio, setIncludeSystemAudio] = useState(false);
   const [micGain, setMicGain] = useState(1);
   const [systemGain, setSystemGain] = useState(1);
-  const recordingActionsRef = useRef<RecordingActions | null>(null);
-  const pendingStartRef = useRef<PendingStartRef | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+
+  const recordingActionsRef = useRef<RecordingActions | null>(null);
+  const pendingStartRef = useRef<PendingStartRef | null>(null);
 
   const mixerError = useMemo(() => mixer.state.error, [mixer.state.error]);
 
@@ -112,14 +115,23 @@ export function RecordingWorkspaceShell() {
           throw new Error("Select a student before saving the session");
         }
 
-        await saveSessionAction({
+        const saved = await saveSessionAction({
           transcript: finalTranscript,
           durationMs,
           studentId: currentStudentId,
           startedAt,
         });
 
-        setSaveSuccess("Session saved to Supabase");
+        setSaveSuccess("Session saved. Generating summary and homework...");
+
+        // Fire-and-forget: Start AI generation without blocking UI
+        if (saved?.id) {
+          generateSessionArtifactsAction(saved.id).catch((error) => {
+            console.error("AI generation error", error);
+            // Don't show error to user since this is background generation
+          });
+        }
+
         router.refresh();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to save session";
@@ -148,25 +160,29 @@ export function RecordingWorkspaceShell() {
     [mixer, resetActions, soniox],
   );
 
-  const handleStudentConfirmed = useCallback(async (_student: { id: string; name: string }) => {
-    const pending = pendingStartRef.current;
-    if (!pending) {
-      setPickerOpen(false);
-      return;
-    }
+  const handleStudentConfirmed = useCallback(
+    async (student: { id: string; name: string }) => {
+      void student;
+      const pending = pendingStartRef.current;
+      if (!pending) {
+        setPickerOpen(false);
+        return;
+      }
 
-    try {
-      await startPipeline(pending.actions);
-      pending.resolve();
-      setSaveError(null);
-      setSaveSuccess(null);
-    } catch (err) {
-      pending.reject(err);
-    } finally {
-      pendingStartRef.current = null;
-      setPickerOpen(false);
-    }
-  }, [startPipeline]);
+      try {
+        await startPipeline(pending.actions);
+        pending.resolve();
+        setSaveError(null);
+        setSaveSuccess(null);
+      } catch (err) {
+        pending.reject(err);
+      } finally {
+        pendingStartRef.current = null;
+        setPickerOpen(false);
+      }
+    },
+    [startPipeline],
+  );
 
   const handlePickerDismiss = useCallback((reason?: "cancel" | "outside") => {
     setPickerOpen(false);
@@ -218,16 +234,15 @@ export function RecordingWorkspaceShell() {
           {saveSuccess}
         </p>
       ) : null}
-      <RecordingConsole
-        onStart={handleStart}
-        onStop={handleStop}
-        onCancel={handleCancel}
-      />
+
+      <RecordingConsole onStart={handleStart} onStop={handleStop} onCancel={handleCancel} />
+
       {(tokenLoading || mixer.state.requesting || savingSession) && (
         <p className="text-xs text-slate-500">
           {savingSession ? "Saving session to Supabase..." : "Preparing recording pipeline..."}
         </p>
       )}
+
       <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
         <label className="flex items-center gap-2">
           <input
@@ -274,11 +289,7 @@ export function RecordingWorkspaceShell() {
         </label>
       </div>
 
-      <StudentPickerDialog
-        open={pickerOpen}
-        onDismiss={handlePickerDismiss}
-        onStudentConfirmed={handleStudentConfirmed}
-      />
+      <StudentPickerDialog open={pickerOpen} onDismiss={handlePickerDismiss} onStudentConfirmed={handleStudentConfirmed} />
     </div>
   );
 }

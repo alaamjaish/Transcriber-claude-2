@@ -1,4 +1,4 @@
-﻿export type GenerationStatus = "idle" | "generating" | "complete" | "empty" | "error";
+export type GenerationStatus = "idle" | "generating" | "complete" | "empty" | "error";
 
 export interface Student {
   id: string;
@@ -18,6 +18,10 @@ export interface Session {
   generationStatus: GenerationStatus;
   summaryReady: boolean;
   homeworkReady: boolean;
+  summaryMd?: string | null;
+  homeworkMd?: string | null;
+  aiGenerationStatus?: string | null;
+  aiGenerationStartedAt?: string | null;
 }
 
 export interface TeacherProfile {
@@ -32,4 +36,3 @@ export interface TeacherPreference {
   currentStudentId?: string;
   updatedAt: string;
 }
-

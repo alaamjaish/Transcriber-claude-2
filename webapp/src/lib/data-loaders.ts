@@ -1,5 +1,3 @@
-import { cache } from "react";
-
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Session, Student } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
@@ -10,6 +8,8 @@ type SessionRow = Database["public"]["Tables"]["sessions"]["Row"] & {
   students?: { name: string }[];
   student?: { name: string } | null;
   student_name?: string | null;
+  generation_status?: string | null;
+  generation_started_at?: string | null;
 };
 
 type StudentRow = Database["public"]["Tables"]["students"]["Row"] & {
@@ -62,11 +62,15 @@ function buildSession(row: SessionRow): Session {
     studentName: fromRelation?.name ?? row.student_name ?? undefined,
     recordedAt: row.timestamp ?? row.created_at,
     durationMs: row.duration_ms ?? 0,
-    transcript: transcript,
+    transcript,
     transcriptPreview: limitWords(transcript, 8),
     generationStatus,
     summaryReady,
     homeworkReady,
+    summaryMd: row.summary_md ?? null,
+    homeworkMd: row.homework_md ?? null,
+    aiGenerationStatus: row.generation_status ?? null,
+    aiGenerationStartedAt: row.generation_started_at ?? null,
   };
 }
 
@@ -79,7 +83,7 @@ function buildStudent(row: StudentRow): Student {
   };
 }
 
-export const loadStudents = cache(async (): Promise<Student[]> => {
+export async function loadStudents(): Promise<Student[]> {
   const { client, userId } = await requireSupabaseContext();
 
   const { data, error } = await client
@@ -93,9 +97,9 @@ export const loadStudents = cache(async (): Promise<Student[]> => {
   }
 
   return (data as StudentRow[] | null)?.map(buildStudent) ?? [];
-});
+}
 
-export const loadStudentById = cache(async (studentId: string): Promise<Student | null> => {
+export async function loadStudentById(studentId: string): Promise<Student | null> {
   if (!studentId) {
     throw new Error("studentId is required");
   }
@@ -114,14 +118,14 @@ export const loadStudentById = cache(async (studentId: string): Promise<Student 
   }
 
   return data ? buildStudent(data as StudentRow) : null;
-});
+}
 
-export const loadRecentSessions = cache(async (): Promise<Session[]> => {
+export async function loadRecentSessions(): Promise<Session[]> {
   const { client, userId } = await requireSupabaseContext();
 
   const { data, error } = await client
     .from("sessions")
-    .select("id, student_id, timestamp, duration_ms, transcript, summary_md, homework_md, created_at, students(name)")
+    .select("id, student_id, timestamp, duration_ms, transcript, summary_md, homework_md, generation_status, generation_started_at, created_at, students(name)")
     .eq("owner_user_id", userId)
     .order("timestamp", { ascending: false })
     .limit(PAGE_SIZE);
@@ -130,10 +134,10 @@ export const loadRecentSessions = cache(async (): Promise<Session[]> => {
     throw error;
   }
 
-  return (data as SessionRow[] | null)?.map(buildSession) ?? [];
-});
+  return (data as any[] | null)?.map(buildSession) ?? [];
+}
 
-export const loadSessionsForStudent = cache(async (studentId: string): Promise<Session[]> => {
+export async function loadSessionsForStudent(studentId: string): Promise<Session[]> {
   if (!studentId) {
     throw new Error("studentId is required");
   }
@@ -142,7 +146,7 @@ export const loadSessionsForStudent = cache(async (studentId: string): Promise<S
 
   const { data, error } = await client
     .from("sessions")
-    .select("id, student_id, timestamp, duration_ms, transcript, summary_md, homework_md, created_at")
+    .select("id, student_id, timestamp, duration_ms, transcript, summary_md, homework_md, generation_status, generation_started_at, created_at")
     .eq("owner_user_id", userId)
     .eq("student_id", studentId)
     .order("timestamp", { ascending: false })
@@ -152,5 +156,6 @@ export const loadSessionsForStudent = cache(async (studentId: string): Promise<S
     throw error;
   }
 
-  return (data as SessionRow[] | null)?.map(buildSession) ?? [];
-});
+  return (data as any[] | null)?.map(buildSession) ?? [];
+}
+

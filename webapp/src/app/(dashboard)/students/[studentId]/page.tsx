@@ -1,29 +1,12 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { loadSessionsForStudent, loadStudentById } from "@/lib/data-loaders";
-import type { Session, Student, GenerationStatus } from "@/lib/types";
+import type { Session, Student } from "@/lib/types";
 
 import { StudentSessionList } from "./components/StudentSessionList";
-
-function statusLabel(status: GenerationStatus): string {
-  switch (status) {
-    case "idle":
-      return "Ready";
-    case "generating":
-      return "Generating";
-    case "complete":
-      return "Complete";
-    case "empty":
-      return "Empty";
-    case "error":
-      return "Error";
-    default:
-      return "Unknown";
-  }
-}
 
 interface StudentPageProps {
   params: Promise<{ studentId: string }>;
@@ -59,7 +42,7 @@ export default async function StudentPage({ params }: StudentPageProps) {
     <div className="space-y-8">
       <Card
         title={student.name}
-        description={`Created ${new Date(student.createdAt).toLocaleDateString()} • ${totalSessions} sessions recorded`}
+        description={`Created ${new Date(student.createdAt).toLocaleDateString()} - ${totalSessions} sessions recorded`}
         footer={
           <div className="flex flex-wrap gap-3 text-xs">
             <button className="rounded-md border border-slate-700 px-3 py-1 hover:border-slate-500">Rename</button>
@@ -97,4 +80,7 @@ export default async function StudentPage({ params }: StudentPageProps) {
     </div>
   );
 }
+
+
+
 
