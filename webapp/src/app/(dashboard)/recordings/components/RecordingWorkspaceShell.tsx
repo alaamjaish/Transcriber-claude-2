@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { generateSessionArtifactsAction } from "@/app/actions/generation";
 import { saveSessionAction } from "@/app/actions/sessions";
+import { listStudentsAction } from "@/app/actions/students";
 import { useSelectedStudent } from "@/components/layout/SelectedStudentProvider";
-import type { Session } from "@/lib/types";
+import type { Session, Student } from "@/lib/types";
 import { useSessionList } from "./SessionListProvider";
 
 import type { RecordingActions, RecordingResult } from "./RecordingConsole";
@@ -48,8 +49,40 @@ export function RecordingWorkspaceShell() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
+  // Preloaded students state
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentsError, setStudentsError] = useState<string | null>(null);
+
   const recordingActionsRef = useRef<RecordingActions | null>(null);
   const pendingStartRef = useRef<PendingStartRef | null>(null);
+
+  // Preload students on component mount
+  useEffect(() => {
+    let active = true;
+    setStudentsLoading(true);
+    setStudentsError(null);
+
+    listStudentsAction()
+      .then((result) => {
+        if (!active) return;
+        setStudents(result);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        const message = err instanceof Error ? err.message : "Failed to load students";
+        setStudentsError(message);
+      })
+      .finally(() => {
+        if (active) {
+          setStudentsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const mixerError = useMemo(() => mixer.state.error, [mixer.state.error]);
 
@@ -202,16 +235,18 @@ export function RecordingWorkspaceShell() {
         return;
       }
 
+      // Close dialog immediately to show status indicators
+      setPickerOpen(false);
+      setSaveError(null);
+      setSaveSuccess(null);
+
       try {
         await startPipeline(pending.actions);
         pending.resolve();
-        setSaveError(null);
-        setSaveSuccess(null);
       } catch (err) {
         pending.reject(err);
       } finally {
         pendingStartRef.current = null;
-        setPickerOpen(false);
       }
     },
     [startPipeline],
@@ -322,7 +357,14 @@ export function RecordingWorkspaceShell() {
         </label>
       </div>
 
-      <StudentPickerDialog open={pickerOpen} onDismiss={handlePickerDismiss} onStudentConfirmed={handleStudentConfirmed} />
+      <StudentPickerDialog
+        open={pickerOpen}
+        onDismiss={handlePickerDismiss}
+        onStudentConfirmed={handleStudentConfirmed}
+        students={students}
+        loading={studentsLoading}
+        error={studentsError}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { createStudentAction, listStudentsAction } from "@/app/actions/students";
+import { createStudentAction } from "@/app/actions/students";
 import { useSelectedStudent } from "@/components/layout/SelectedStudentProvider";
 import type { Student } from "@/lib/types";
 
@@ -10,58 +10,37 @@ interface StudentPickerDialogProps {
   open: boolean;
   onDismiss: (reason?: "cancel" | "outside") => void;
   onStudentConfirmed: (student: { id: string; name: string }) => Promise<void> | void;
+  students: Student[];
+  loading: boolean;
+  error: string | null;
 }
 
-export function StudentPickerDialog({ open, onDismiss, onStudentConfirmed }: StudentPickerDialogProps) {
+export function StudentPickerDialog({ open, onDismiss, onStudentConfirmed, students, loading, error }: StudentPickerDialogProps) {
   const { currentStudentId, setCurrentStudent, pending: selectionPending, error: selectionError } =
     useSelectedStudent();
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [newStudentName, setNewStudentName] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    let active = true;
-    setLoading(true);
-    setError(null);
-
-    listStudentsAction()
-      .then((result) => {
-        if (!active) return;
-        setStudents(result);
-        if (currentStudentId) {
-          setSelectedId(currentStudentId);
-        } else if (result.length > 0) {
-          setSelectedId(result[0].id);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!active) return;
-        const message = err instanceof Error ? err.message : "Failed to load students";
-        setError(message);
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [open, currentStudentId]);
+    // Set initial selection when dialog opens
+    if (currentStudentId) {
+      setSelectedId(currentStudentId);
+    } else if (students.length > 0) {
+      setSelectedId(students[0].id);
+    }
+  }, [open, currentStudentId, students]);
 
   useEffect(() => {
     if (!open) {
       setNewStudentName("");
-      setError(null);
       setSubmitting(false);
+      setFormError(null);
     }
   }, [open]);
 
@@ -73,13 +52,6 @@ export function StudentPickerDialog({ open, onDismiss, onStudentConfirmed }: Stu
       throw new Error("Provide a student name");
     }
     const created = await createStudentAction(name);
-    setStudents((prev) => {
-      const existing = prev.find((item) => item.id === created.id);
-      if (existing) {
-        return prev;
-      }
-      return [created, ...prev];
-    });
     setSelectedId(created.id);
     setNewStudentName("");
     return { id: created.id, name: created.name };
@@ -87,7 +59,7 @@ export function StudentPickerDialog({ open, onDismiss, onStudentConfirmed }: Stu
 
   const handleConfirm = useCallback(async () => {
     setSubmitting(true);
-    setError(null);
+    setFormError(null);
 
     try {
       let target: { id: string; name: string } | null = null;
@@ -110,14 +82,14 @@ export function StudentPickerDialog({ open, onDismiss, onStudentConfirmed }: Stu
       await onStudentConfirmed(target);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to set current student";
-      setError(message);
+      setFormError(message);
     } finally {
       setSubmitting(false);
     }
   }, [handleCreateAndSelect, newStudentName, onStudentConfirmed, selectedId, setCurrentStudent, students]);
 
   const busy = loading || submitting || selectionPending;
-  const feedback = useMemo(() => selectionError ?? error, [error, selectionError]);
+  const feedback = useMemo(() => selectionError ?? error ?? formError, [error, selectionError, formError]);
 
   if (!open) {
     return null;
@@ -194,11 +166,11 @@ export function StudentPickerDialog({ open, onDismiss, onStudentConfirmed }: Stu
                 onClick={async () => {
                   try {
                     setSubmitting(true);
-                    setError(null);
+                    setFormError(null);
                     await handleCreateAndSelect();
                   } catch (err) {
                     const message = err instanceof Error ? err.message : "Failed to add student";
-                    setError(message);
+                    setFormError(message);
                   } finally {
                     setSubmitting(false);
                   }
