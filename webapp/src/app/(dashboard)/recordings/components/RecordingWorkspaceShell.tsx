@@ -89,6 +89,10 @@ export function RecordingWorkspaceShell() {
   const startPipeline = useCallback(
     async (actions: RecordingActions) => {
       recordingActionsRef.current = actions;
+
+      // Reset previous transcript when starting new recording
+      actions.reset();
+
       try {
         actions.setConnecting();
         const token = await fetchToken();
@@ -204,11 +208,10 @@ export function RecordingWorkspaceShell() {
         setSaveError(message);
         throw error;
       } finally {
-        resetActions(actions);
         setSavingSession(false);
       }
     },
-    [appendSession, currentStudentId, currentStudentName, mixer, resetActions, router, soniox],
+    [appendSession, currentStudentId, currentStudentName, mixer, router, soniox],
   );
 
   const handleCancel = useCallback(
