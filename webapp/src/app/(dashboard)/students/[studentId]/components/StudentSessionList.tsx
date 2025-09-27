@@ -10,6 +10,9 @@ import { statusLabel } from "@/lib/placeholder-data";
 
 type PanelKey = "transcript" | "summary" | "homework";
 type PanelState = Record<PanelKey, boolean>;
+type PendingEntry = { summary: boolean; homework: boolean };
+type PendingMap = Record<string, PendingEntry>;
+type PendingKey = keyof PendingEntry;
 
 function formatDuration(durationMs: number): string {
   if (!durationMs || durationMs <= 0) return "0:00";
@@ -26,6 +29,7 @@ interface StudentSessionListProps {
 export function StudentSessionList({ sessions }: StudentSessionListProps) {
   const router = useRouter();
   const [openPanels, setOpenPanels] = useState<Record<string, PanelState>>({});
+  const [pendingGenerations, setPendingGenerations] = useState<PendingMap>({});
 
   const togglePanel = useCallback((sessionId: string, panel: PanelKey) => {
     setOpenPanels((prev) => {
@@ -34,6 +38,21 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
         ...prev,
         [sessionId]: { ...current, [panel]: !current[panel] },
       };
+    });
+  }, []);
+
+  const setPending = useCallback((sessionId: string, key: PendingKey, value: boolean) => {
+    setPendingGenerations((prev) => {
+      const current = prev[sessionId] ?? { summary: false, homework: false };
+      if (current[key] === value) {
+        return prev;
+      }
+      const nextEntry: PendingEntry = { ...current, [key]: value };
+      const next: PendingMap = { ...prev, [sessionId]: nextEntry };
+      if (!nextEntry.summary && !nextEntry.homework) {
+        delete next[sessionId];
+      }
+      return next;
     });
   }, []);
 
@@ -76,31 +95,65 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
 
   const regenerateSummary = useCallback(
     (sessionId: string) => {
+      setPending(sessionId, "summary", true);
+
       // Fire-and-forget: Start generation without blocking UI
       generateSessionArtifactsAction(sessionId, { summary: true, homework: false }).catch((error) => {
         console.error("Summary generation error", error);
         alert("Failed to start summary generation. Please try again.");
+        setPending(sessionId, "summary", false);
       });
 
       // Force immediate refresh to show "generating" status
       router.refresh();
     },
-    [router],
+    [router, setPending],
   );
 
   const regenerateHomework = useCallback(
     (sessionId: string) => {
+      setPending(sessionId, "homework", true);
+
       // Fire-and-forget: Start generation without blocking UI
       generateSessionArtifactsAction(sessionId, { summary: false, homework: true }).catch((error) => {
         console.error("Homework generation error", error);
         alert("Failed to start homework generation. Please try again.");
+        setPending(sessionId, "homework", false);
       });
 
       // Force immediate refresh to show "generating" status
       router.refresh();
     },
-    [router],
+    [router, setPending],
   );
+
+  useEffect(() => {
+    setPendingGenerations((prev) => {
+      if (Object.keys(prev).length === 0) {
+        return prev;
+      }
+
+      const next: PendingMap = { ...prev };
+      let changed = false;
+      const activeIds = new Set(sessions.map((session) => session.id));
+
+      Object.keys(next).forEach((id) => {
+        if (!activeIds.has(id)) {
+          delete next[id];
+          changed = true;
+        }
+      });
+
+      sessions.forEach((session) => {
+        if (session.aiGenerationStatus !== "generating" && next[session.id]) {
+          delete next[session.id];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [sessions]);
 
   // Polling mechanism for real-time status updates
   useEffect(() => {
@@ -128,7 +181,10 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
         const homeworkReady = Boolean(homework.trim());
 
         const isAiGenerating = session.aiGenerationStatus === "generating";
-        const headerPending = isAiGenerating;
+        const pending = pendingGenerations[session.id] ?? { summary: false, homework: false };
+        const summaryPending = pending.summary || (isAiGenerating && !summaryReady);
+        const homeworkPending = pending.homework || (isAiGenerating && !homeworkReady);
+        const headerPending = summaryPending || homeworkPending || isAiGenerating;
 
         const transcriptOpen = openPanels[session.id]?.transcript ?? false;
         const summaryOpen = openPanels[session.id]?.summary ?? false;
@@ -140,7 +196,7 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
 
         const summaryStatus = !hasTranscript
           ? "Transcript required first"
-          : isAiGenerating
+          : summaryPending
           ? "Generating..."
           : summaryReady
           ? "Ready"
@@ -148,7 +204,7 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
 
         const homeworkStatus = !hasTranscript
           ? "Transcript required first"
-          : isAiGenerating
+          : homeworkPending
           ? "Generating..."
           : homeworkReady
           ? "Ready"
@@ -229,9 +285,9 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
                   <button
                     className="rounded-md border border-slate-700 px-3 py-1"
                     onClick={() => regenerateSummary(session.id)}
-                    disabled={!hasTranscript || isAiGenerating}
+                    disabled={!hasTranscript || summaryPending}
                   >
-                    {isAiGenerating ? "Generating..." : summaryReady ? "Regenerate" : "Generate"}
+                    {summaryPending ? "Generating..." : summaryReady ? "Regenerate" : "Generate"}
                   </button>
                 </div>
               </div>
@@ -271,9 +327,9 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
                   <button
                     className="rounded-md border border-slate-700 px-3 py-1"
                     onClick={() => regenerateHomework(session.id)}
-                    disabled={!hasTranscript || isAiGenerating}
+                    disabled={!hasTranscript || homeworkPending}
                   >
-                    {isAiGenerating ? "Generating..." : homeworkReady ? "Regenerate" : "Generate"}
+                    {homeworkPending ? "Generating..." : homeworkReady ? "Regenerate" : "Generate"}
                   </button>
                 </div>
               </div>

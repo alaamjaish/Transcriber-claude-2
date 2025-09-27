@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { generateSessionArtifactsAction } from "@/app/actions/generation";
 import { saveSessionAction } from "@/app/actions/sessions";
 import { useSelectedStudent } from "@/components/layout/SelectedStudentProvider";
+import type { Session } from "@/lib/types";
+import { useSessionList } from "./SessionListProvider";
 
 import type { RecordingActions, RecordingResult } from "./RecordingConsole";
 import { RecordingConsole } from "./RecordingConsole";
@@ -20,12 +22,23 @@ interface PendingStartRef {
   reject: (reason?: unknown) => void;
 }
 
+function buildTranscriptPreview(text: string, maxWords = 8): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  const words = trimmed.split(/\s+/);
+  if (words.length <= maxWords) {
+    return trimmed;
+  }
+  return `${words.slice(0, maxWords).join(" ")}...`;
+}
+
 export function RecordingWorkspaceShell() {
   const { currentStudentId, currentStudentName } = useSelectedStudent();
   const { fetchToken, loading: tokenLoading, error: tokenError } = useSonioxToken();
   const mixer = useAudioMixer();
   const soniox = useSonioxStream();
   const router = useRouter();
+  const { appendSession } = useSessionList();
 
   const [includeSystemAudio, setIncludeSystemAudio] = useState(false);
   const [micGain, setMicGain] = useState(1);
@@ -126,6 +139,26 @@ export function RecordingWorkspaceShell() {
 
         // Fire-and-forget: Start AI generation without blocking UI
         if (saved?.id) {
+          const hasTranscript = finalTranscript.length > 0;
+          const optimisticSession: Session = {
+            id: saved.id,
+            studentId: currentStudentId,
+            studentName: currentStudentName ?? undefined,
+            recordedAt: saved.timestamp,
+            durationMs: saved.durationMs ?? durationMs,
+            transcript: finalTranscript,
+            transcriptPreview: buildTranscriptPreview(finalTranscript),
+            generationStatus: hasTranscript ? "generating" : "empty",
+            summaryReady: false,
+            homeworkReady: false,
+            summaryMd: null,
+            homeworkMd: null,
+            aiGenerationStatus: hasTranscript ? "generating" : "idle",
+            aiGenerationStartedAt: hasTranscript ? new Date().toISOString() : null,
+          };
+
+          appendSession(optimisticSession);
+
           generateSessionArtifactsAction(saved.id).catch((error) => {
             console.error("AI generation error", error);
             // Don't show error to user since this is background generation
@@ -142,7 +175,7 @@ export function RecordingWorkspaceShell() {
         setSavingSession(false);
       }
     },
-    [currentStudentId, mixer, resetActions, router, soniox],
+    [appendSession, currentStudentId, currentStudentName, mixer, resetActions, router, soniox],
   );
 
   const handleCancel = useCallback(
@@ -293,3 +326,4 @@ export function RecordingWorkspaceShell() {
     </div>
   );
 }
+
