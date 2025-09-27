@@ -8,6 +8,13 @@ import { TranscriptPane } from "./TranscriptPane";
 
 export type RecordingPhase = "idle" | "requesting" | "connecting" | "live" | "finishing" | "finished" | "error";
 
+export interface RecordingResult {
+  transcript: string;
+  durationMs: number;
+  speakerCount: number;
+  startedAt: number | null;
+}
+
 interface TranscriptSegment {
   speaker: string;
   text: string;
@@ -98,7 +105,7 @@ export interface RecordingActions {
 
 interface RecordingConsoleProps {
   onStart: (actions: RecordingActions) => Promise<void> | void;
-  onStop: (actions: RecordingActions) => Promise<void> | void;
+  onStop: (actions: RecordingActions, result: RecordingResult) => Promise<void> | void;
   onCancel: (actions: RecordingActions) => Promise<void> | void;
 }
 
@@ -169,17 +176,30 @@ export function RecordingConsole({ onStart, onStop, onCancel }: RecordingConsole
             try {
               await onStart(actions);
             } catch (error) {
-              dispatch({
-                type: "ERROR",
-                message: (error as Error).message || "Failed to start",
-              });
+              const message = (error as Error).message || "Failed to start";
+              if (message.toLowerCase().includes("cancel")) {
+                dispatch({ type: "RESET" });
+              } else if (message.toLowerCase().includes("dismiss")) {
+                dispatch({ type: "RESET" });
+              } else {
+                dispatch({
+                  type: "ERROR",
+                  message,
+                });
+              }
             }
           }}
           onStop={async () => {
             const duration = state.startedAt ? Date.now() - state.startedAt : 0;
             dispatch({ type: "FINISH", durationMs: duration });
             try {
-              await onStop(actions);
+              const result: RecordingResult = {
+                transcript: state.liveSegments.map(segment => `${segment.speaker}: ${segment.text}`).join('\n'),
+                durationMs: duration,
+                speakerCount: state.speakerCount,
+                startedAt: state.startedAt
+              };
+              await onStop(actions, result);
               dispatch({ type: "COMPLETE" });
             } catch (error) {
               dispatch({

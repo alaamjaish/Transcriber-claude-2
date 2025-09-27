@@ -34,6 +34,12 @@ async function requireSupabaseContext() {
   return { client, userId: user.id };
 }
 
+function limitWords(text: string, maxWords: number): string {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(' ') + '...';
+}
+
 function buildSession(row: SessionRow): Session {
   const transcript = row.transcript ?? "";
   const summaryReady = Boolean(row.summary_md);
@@ -56,7 +62,8 @@ function buildSession(row: SessionRow): Session {
     studentName: fromRelation?.name ?? row.student_name ?? undefined,
     recordedAt: row.timestamp ?? row.created_at,
     durationMs: row.duration_ms ?? 0,
-    transcriptPreview: transcript.slice(0, 180),
+    transcript: transcript,
+    transcriptPreview: limitWords(transcript, 8),
     generationStatus,
     summaryReady,
     homeworkReady,

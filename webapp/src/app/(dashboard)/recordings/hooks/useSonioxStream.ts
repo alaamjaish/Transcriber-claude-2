@@ -158,7 +158,7 @@ export function useSonioxStream() {
     [appendFinalSegment, labelForSpeaker, buildLiveFromNonFinals, isDisplayableTokenText],
   );
 
-  const stop = useCallback(() => {
+  const stop = useCallback((options?: { resetStart?: boolean }) => {
     if (clientRef.current) {
       try {
         clientRef.current.stop();
@@ -167,13 +167,15 @@ export function useSonioxStream() {
       }
       clientRef.current = null;
     }
-    startedAtRef.current = null;
+    if (options?.resetStart) {
+      startedAtRef.current = null;
+    }
     setState((prev) => ({ ...prev, connected: false }));
   }, []);
 
   const start = useCallback(
     async ({ apiKey, websocketUrl, stream, actions }: StartStreamParams) => {
-      stop();
+      stop({ resetStart: true });
       setState({ connected: false, error: null });
       finalSegmentsRef.current = [];
       speakerMapRef.current = new Map();
@@ -186,7 +188,8 @@ export function useSonioxStream() {
           webSocketUri: websocketUrl ?? undefined,
           onStarted: () => {
             setState({ connected: true, error: null });
-            actions.setLive(startedAtRef.current ?? Date.now());
+            const startedAt = startedAtRef.current ?? Date.now();
+            actions.setLive(startedAt);
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
             try {
@@ -196,15 +199,14 @@ export function useSonioxStream() {
             }
           },
           onFinished: () => {
-            // When finished, show complete final transcript in live view (no partials left)
             actions.updateLive([...finalSegmentsRef.current], speakerMapRef.current.size);
-            stop();
+            stop({ resetStart: true });
           },
           onError: (status: string, message: string) => {
             const errorMessage = message || status || "Stream error";
             actions.fail(errorMessage);
             setState({ connected: false, error: errorMessage });
-            stop();
+            stop({ resetStart: true });
           },
         });
 
@@ -222,12 +224,28 @@ export function useSonioxStream() {
         const message = (error as Error).message || "Failed to start stream";
         actions.fail(message);
         setState({ connected: false, error: message });
-        stop();
+        stop({ resetStart: true });
         throw error;
       }
     },
     [processTokens, stop],
   );
 
-  return { state, start, stop };
+  const getTranscriptText = useCallback(() => {
+
+    return finalSegmentsRef.current.map((segment) => `${segment.speaker}: ${segment.text}`).join("\n");
+
+  }, []);
+
+
+
+  const getFinalSegments = useCallback(() => {
+    return finalSegmentsRef.current.map((segment) => ({ ...segment }));
+  }, []);
+
+  const getSpeakerCount = useCallback(() => speakerMapRef.current.size, []);
+
+  const getStartTimestamp = useCallback(() => startedAtRef.current, []);
+
+  return { state, start, stop, getTranscriptText, getFinalSegments, getSpeakerCount, getStartTimestamp };
 }

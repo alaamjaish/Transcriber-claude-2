@@ -13,6 +13,7 @@ export interface Session {
   studentName?: string;
   recordedAt: string;
   durationMs: number;
+  transcript: string;
   transcriptPreview: string;
   generationStatus: GenerationStatus;
   summaryReady: boolean;
@@ -25,3 +26,10 @@ export interface TeacherProfile {
   displayName?: string;
   onboarded: boolean;
 }
+
+export interface TeacherPreference {
+  userId: string;
+  currentStudentId?: string;
+  updatedAt: string;
+}
+

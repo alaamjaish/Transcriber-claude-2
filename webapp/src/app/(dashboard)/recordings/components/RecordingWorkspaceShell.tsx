@@ -1,25 +1,43 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import type { RecordingActions } from "./RecordingConsole";
+import { saveSessionAction } from "@/app/actions/sessions";
+import { useSelectedStudent } from "@/components/layout/SelectedStudentProvider";
+
+import type { RecordingActions, RecordingResult } from "./RecordingConsole";
 import { RecordingConsole } from "./RecordingConsole";
+import { StudentPickerDialog } from "./StudentPickerDialog";
 import { useAudioMixer } from "../hooks/useAudioMixer";
 import { useSonioxToken } from "../hooks/useSonioxToken";
 import { useSonioxStream } from "../hooks/useSonioxStream";
 
+interface PendingStartRef {
+  actions: RecordingActions;
+  resolve: () => void;
+  reject: (reason?: unknown) => void;
+}
+
 export function RecordingWorkspaceShell() {
+  const { currentStudentId, currentStudentName } = useSelectedStudent();
   const { fetchToken, loading: tokenLoading, error: tokenError } = useSonioxToken();
   const mixer = useAudioMixer();
   const soniox = useSonioxStream();
+  const router = useRouter();
   const [includeSystemAudio, setIncludeSystemAudio] = useState(false);
   const [micGain, setMicGain] = useState(1);
   const [systemGain, setSystemGain] = useState(1);
   const recordingActionsRef = useRef<RecordingActions | null>(null);
+  const pendingStartRef = useRef<PendingStartRef | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   const mixerError = useMemo(() => mixer.state.error, [mixer.state.error]);
 
-  const handleStart = useCallback(
+  const startPipeline = useCallback(
     async (actions: RecordingActions) => {
       recordingActionsRef.current = actions;
       try {
@@ -46,7 +64,7 @@ export function RecordingWorkspaceShell() {
       } catch (err) {
         const message = (err as Error).message || "Failed to start recording";
         actions.fail(message);
-        soniox.stop();
+        soniox.stop({ resetStart: true });
         mixer.stop();
         throw err;
       }
@@ -54,22 +72,127 @@ export function RecordingWorkspaceShell() {
     [fetchToken, mixer, soniox, includeSystemAudio, micGain, systemGain],
   );
 
-  const cleanupRecording = useCallback((actions?: RecordingActions) => {
-    soniox.stop();
-    mixer.stop();
+  const handleStart = useCallback(
+    async (actions: RecordingActions) => {
+      setSaveError(null);
+      setSaveSuccess(null);
+
+      return new Promise<void>((resolve, reject) => {
+        pendingStartRef.current = { actions, resolve, reject };
+        setPickerOpen(true);
+      });
+    },
+    [],
+  );
+
+  const resetActions = useCallback((actions?: RecordingActions) => {
     (actions ?? recordingActionsRef.current)?.reset();
-  }, [soniox, mixer]);
+  }, []);
 
-  const handleStop = useCallback(async (actions: RecordingActions) => {
-    cleanupRecording(actions);
-  }, [cleanupRecording]);
+  const handleStop = useCallback(
+    async (actions: RecordingActions, result?: RecordingResult) => {
+      setSavingSession(true);
+      setSaveError(null);
+      setSaveSuccess(null);
 
-  const handleCancel = useCallback(async (actions: RecordingActions) => {
-    cleanupRecording(actions);
-  }, [cleanupRecording]);
+      try {
+        soniox.stop({ resetStart: false });
+      } catch (error) {
+        console.warn("Soniox stop error", error);
+      }
+      mixer.stop();
+
+      const transcriptText = soniox.getTranscriptText ? soniox.getTranscriptText() : result?.transcript ?? "";
+      const finalTranscript = transcriptText.trim();
+      const startedAt = result?.startedAt ?? soniox.getStartTimestamp?.() ?? Date.now();
+      const durationMs = result?.durationMs && result.durationMs > 0 ? result.durationMs : Math.max(0, Date.now() - startedAt);
+
+      try {
+        if (!currentStudentId) {
+          throw new Error("Select a student before saving the session");
+        }
+
+        await saveSessionAction({
+          transcript: finalTranscript,
+          durationMs,
+          studentId: currentStudentId,
+          startedAt,
+        });
+
+        setSaveSuccess("Session saved to Supabase");
+        router.refresh();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to save session";
+        setSaveError(message);
+        throw error;
+      } finally {
+        resetActions(actions);
+        setSavingSession(false);
+      }
+    },
+    [currentStudentId, mixer, resetActions, router, soniox],
+  );
+
+  const handleCancel = useCallback(
+    async (actions: RecordingActions) => {
+      try {
+        soniox.stop({ resetStart: true });
+      } catch (error) {
+        console.warn("Soniox cancel error", error);
+      }
+      mixer.stop();
+      resetActions(actions);
+      setSaveError(null);
+      setSaveSuccess(null);
+    },
+    [mixer, resetActions, soniox],
+  );
+
+  const handleStudentConfirmed = useCallback(async (_student: { id: string; name: string }) => {
+    const pending = pendingStartRef.current;
+    if (!pending) {
+      setPickerOpen(false);
+      return;
+    }
+
+    try {
+      await startPipeline(pending.actions);
+      pending.resolve();
+      setSaveError(null);
+      setSaveSuccess(null);
+    } catch (err) {
+      pending.reject(err);
+    } finally {
+      pendingStartRef.current = null;
+      setPickerOpen(false);
+    }
+  }, [startPipeline]);
+
+  const handlePickerDismiss = useCallback((reason?: "cancel" | "outside") => {
+    setPickerOpen(false);
+    if (pendingStartRef.current) {
+      pendingStartRef.current.reject(
+        new Error(reason === "cancel" ? "Student selection cancelled" : "Student selection dismissed"),
+      );
+      pendingStartRef.current = null;
+    }
+  }, []);
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs">
+        <div className="text-slate-400">
+          Current student: <span className="font-semibold text-slate-200">{currentStudentName ?? "Not selected"}</span>
+        </div>
+        <button
+          type="button"
+          className="rounded-xl border border-slate-700 px-3 py-1 text-slate-100 transition hover:border-slate-500"
+          onClick={() => setPickerOpen(true)}
+        >
+          {currentStudentId ? "Change" : "Choose student"}
+        </button>
+      </div>
+
       {tokenError ? (
         <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
           Token error: {tokenError}
@@ -85,14 +208,26 @@ export function RecordingWorkspaceShell() {
           Stream error: {soniox.state.error}
         </p>
       ) : null}
+      {saveError ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+          {saveError}
+        </p>
+      ) : null}
+      {saveSuccess ? (
+        <p className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-200">
+          {saveSuccess}
+        </p>
+      ) : null}
       <RecordingConsole
         onStart={handleStart}
         onStop={handleStop}
         onCancel={handleCancel}
       />
-      {tokenLoading || mixer.state.requesting ? (
-        <p className="text-xs text-slate-500">Preparing recording pipeline…</p>
-      ) : null}
+      {(tokenLoading || mixer.state.requesting || savingSession) && (
+        <p className="text-xs text-slate-500">
+          {savingSession ? "Saving session to Supabase..." : "Preparing recording pipeline..."}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
         <label className="flex items-center gap-2">
           <input
@@ -138,7 +273,12 @@ export function RecordingWorkspaceShell() {
           <span className="text-slate-300">{systemGain.toFixed(1)}x</span>
         </label>
       </div>
+
+      <StudentPickerDialog
+        open={pickerOpen}
+        onDismiss={handlePickerDismiss}
+        onStudentConfirmed={handleStudentConfirmed}
+      />
     </div>
   );
 }
-

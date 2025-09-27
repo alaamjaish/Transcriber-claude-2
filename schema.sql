@@ -1719,3 +1719,10 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "storage" GRANT ALL ON TA
 
 
 RESET ALL;
+
+create table if not exists public.teacher_preferences (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  current_student_id uuid references public.students (id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
