@@ -15,7 +15,8 @@
       "Bash(curl:*)",
       "Bash(find:*)",
       "mcp__ide__getDiagnostics",
-      "WebSearch"
+      "WebSearch",
+      "Read(//c/Users/Alaa M. Jaish/OneDrive/الصور/Screenshots/**)"
     ],
     "deny": [],
     "ask": []

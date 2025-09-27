@@ -4,12 +4,31 @@ import type { Database } from "@/lib/database.types";
 
 const PAGE_SIZE = 10;
 
-type SessionRow = Database["public"]["Tables"]["sessions"]["Row"] & {
-  students?: { name: string }[];
-  student?: { name: string } | null;
-  student_name?: string | null;
-  generation_status?: string | null;
-  generation_started_at?: string | null;
+type RecentSessionQueryResult = {
+  id: string;
+  student_id: string;
+  timestamp: string;
+  duration_ms: number;
+  transcript: string;
+  summary_md: string | null;
+  homework_md: string | null;
+  generation_status: string | null;
+  generation_started_at: string | null;
+  created_at: string;
+  students: { name: string };
+};
+
+type StudentSessionQueryResult = {
+  id: string;
+  student_id: string;
+  timestamp: string;
+  duration_ms: number;
+  transcript: string;
+  summary_md: string | null;
+  homework_md: string | null;
+  generation_status: string | null;
+  generation_started_at: string | null;
+  created_at: string;
 };
 
 type StudentRow = Database["public"]["Tables"]["students"]["Row"] & {
@@ -40,7 +59,7 @@ function limitWords(text: string, maxWords: number): string {
   return words.slice(0, maxWords).join(' ') + '...';
 }
 
-function buildSession(row: SessionRow): Session {
+function buildSession(row: RecentSessionQueryResult | StudentSessionQueryResult): Session {
   const transcript = row.transcript ?? "";
   const summaryReady = Boolean(row.summary_md);
   const homeworkReady = Boolean(row.homework_md);
@@ -54,12 +73,13 @@ function buildSession(row: SessionRow): Session {
     generationStatus = "generating";
   }
 
-  const fromRelation = row.student ?? row.students?.[0] ?? null;
+  // Handle student name differently for different query types
+  const studentName = 'students' in row ? row.students?.name : undefined;
 
   return {
     id: row.id,
     studentId: row.student_id ?? undefined,
-    studentName: fromRelation?.name ?? row.student_name ?? undefined,
+    studentName: studentName ?? undefined,
     recordedAt: row.timestamp ?? row.created_at,
     durationMs: row.duration_ms ?? 0,
     transcript,
@@ -134,7 +154,7 @@ export async function loadRecentSessions(): Promise<Session[]> {
     throw error;
   }
 
-  return (data as any[] | null)?.map(buildSession) ?? [];
+  return (data as RecentSessionQueryResult[] | null)?.map(buildSession) ?? [];
 }
 
 export async function loadSessionsForStudent(studentId: string): Promise<Session[]> {
@@ -156,6 +176,6 @@ export async function loadSessionsForStudent(studentId: string): Promise<Session
     throw error;
   }
 
-  return (data as any[] | null)?.map(buildSession) ?? [];
+  return (data as StudentSessionQueryResult[] | null)?.map(buildSession) ?? [];
 }
 
