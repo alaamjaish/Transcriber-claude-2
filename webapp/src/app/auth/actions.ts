@@ -10,18 +10,18 @@ export async function signInAction(_: AuthFormState, formData: FormData): Promis
   const password = (formData.get("password") as string | null) ?? "";
 
   if (!email || !password) {
-    return { message: "Email and password are required." };
+    return { message: "Email and password are required.", messageType: "error" };
   }
 
   try {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      return { message: error.message };
+      return { message: error.message, messageType: "error" };
     }
   } catch (error) {
     console.error("signInAction", error);
-    return { message: "Unable to sign in. Check configuration." };
+    return { message: "Unable to sign in. Check configuration.", messageType: "error" };
   }
 
   redirect("/recordings");
@@ -33,7 +33,7 @@ export async function signUpAction(_: AuthFormState, formData: FormData): Promis
   const password = (formData.get("password") as string | null) ?? "";
 
   if (!email || !password) {
-    return { message: "Email and password are required." };
+    return { message: "Email and password are required.", messageType: "error" };
   }
 
   try {
@@ -49,15 +49,15 @@ export async function signUpAction(_: AuthFormState, formData: FormData): Promis
     });
 
     if (error) {
-      return { message: error.message };
+      return { message: error.message, messageType: "error" };
     }
 
     if (!data.session) {
-      return { message: "Check your inbox to confirm your account before signing in." };
+      return { message: "Check your inbox to confirm your account before signing in.", messageType: "success" };
     }
   } catch (error) {
     console.error("signUpAction", error);
-    return { message: "Unable to sign up. Check configuration." };
+    return { message: "Unable to sign up. Check configuration.", messageType: "error" };
   }
 
   redirect("/recordings");

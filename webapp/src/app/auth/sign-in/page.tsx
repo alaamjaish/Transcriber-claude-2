@@ -37,7 +37,14 @@ export default function SignInPage() {
           </Link>
         </div>
       </div>
-      {state?.message ? <p className="text-xs text-rose-400" role="alert">{state.message}</p> : null}
+      {state?.message ? (
+        <p
+          className={`text-xs ${state.messageType === "success" ? "text-emerald-400" : "text-rose-400"}`}
+          role={state.messageType === "error" ? "alert" : "status"}
+        >
+          {state.message}
+        </p>
+      ) : null}
       <SubmitButton idleLabel="Continue" pendingLabel="Signing in..." />
       <p className="text-center text-xs text-slate-500">
         New here? <Link href="/auth/sign-up" className="text-sky-400 hover:text-sky-300">Create an account</Link>

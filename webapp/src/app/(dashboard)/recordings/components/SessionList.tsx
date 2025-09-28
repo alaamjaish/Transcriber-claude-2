@@ -247,7 +247,7 @@ export function SessionList() {
                   {headerPending ? "Generating" : statusLabel(session.generationStatus)}
                 </span>
                 <button
-                  className="rounded-md border border-slate-700 px-3 py-1"
+                  className="rounded-md border border-blue-600 bg-blue-600/10 px-3 py-1 text-blue-300 hover:bg-blue-600/20"
                   onClick={() => togglePanel(session.id, "transcript")}
                 >
                   {transcriptOpen ? "Hide transcript" : "View transcript"}
@@ -287,7 +287,7 @@ export function SessionList() {
                 <span className="text-xs text-slate-400">{summaryStatus}</span>
                 <div className="flex flex-wrap gap-2 md:ml-auto">
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-200 hover:bg-sky-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400"
                     onClick={() => togglePanel(session.id, "summary")}
                     disabled={!summaryReady}
                   >
@@ -329,7 +329,7 @@ export function SessionList() {
                 <span className="text-xs text-slate-400">{homeworkStatus}</span>
                 <div className="flex flex-wrap gap-2 md:ml-auto">
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-200 hover:bg-sky-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400"
                     onClick={() => togglePanel(session.id, "homework")}
                     disabled={!homeworkReady}
                   >

@@ -42,7 +42,14 @@ export default function SignUpPage() {
           required
         />
       </div>
-      {state?.message ? <p className="text-xs text-rose-400" role="alert">{state.message}</p> : null}
+      {state?.message ? (
+        <p
+          className={`text-xs ${state.messageType === "success" ? "text-emerald-400" : "text-rose-400"}`}
+          role={state.messageType === "error" ? "alert" : "status"}
+        >
+          {state.message}
+        </p>
+      ) : null}
       <SubmitButton idleLabel="Create account" pendingLabel="Creating..." />
       <p className="text-center text-xs text-slate-500">
         Already registered? <Link href="/auth/sign-in" className="text-sky-400 hover:text-sky-300">Sign in instead</Link>
