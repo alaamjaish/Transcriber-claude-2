@@ -283,7 +283,7 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
                     Export .md
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
                     onClick={() => regenerateSummary(session.id)}
                     disabled={!hasTranscript || summaryPending}
                   >
@@ -325,7 +325,7 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
                     Export .md
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
                     onClick={() => regenerateHomework(session.id)}
                     disabled={!hasTranscript || homeworkPending}
                   >
