@@ -7,6 +7,8 @@ import { loadSessionsForStudent, loadStudentById } from "@/lib/data-loaders";
 import type { Session, Student } from "@/lib/types";
 
 import { StudentSessionList } from "./components/StudentSessionList";
+import { StudentRecordingInterface } from "./components/StudentRecordingInterface";
+import { SessionListProvider } from "@/app/(dashboard)/recordings/components/SessionListProvider";
 
 interface StudentPageProps {
   params: Promise<{ studentId: string }>;
@@ -39,45 +41,41 @@ export default async function StudentPage({ params }: StudentPageProps) {
   const totalSessions = student.totalSessions ?? sessions.length;
 
   return (
-    <div className="space-y-8">
-      <Card
-        title={student.name}
-        description={`Created ${new Date(student.createdAt).toLocaleDateString()} - ${totalSessions} sessions recorded`}
-        footer={
-          <div className="flex flex-wrap gap-3 text-xs">
-            <button className="rounded-md border border-slate-700 px-3 py-1 hover:border-slate-500">Rename</button>
-            <button className="rounded-md border border-slate-700 px-3 py-1 hover:border-slate-500">Delete</button>
-            <Link
-              href="/recordings"
-              className="rounded-md bg-sky-400 px-3 py-1 text-slate-900 hover:bg-sky-300"
-            >
-              Record for this student
-            </Link>
-          </div>
-        }
-      />
+    <SessionListProvider initialSessions={sessions}>
+      <div className="space-y-8">
+        <Card
+          title="Transcription Area"
+          description={`Record a new session for ${student.name}`}
+        >
+          <StudentRecordingInterface student={student} />
+        </Card>
 
-      <Card title="Sessions" description="Auditable list of sessions tied to this student.">
-        {errorMessage ? (
-          <EmptyState
-            title="Unable to load sessions"
-            description={errorMessage}
-            actionLabel="Reload"
-            actionHref={`/students/${studentId}`}
-            aside={<span>If this persists, confirm your Supabase env vars and policies.</span>}
-          />
-        ) : sessions.length ? (
-          <StudentSessionList sessions={sessions} />
-        ) : (
-          <EmptyState
-            title="No sessions for this student"
-            description="Record a session and assign it here to populate this view."
-            actionLabel="Go to recordings"
-            actionHref="/recordings"
-          />
-        )}
-      </Card>
-    </div>
+        <Card
+          title={student.name}
+          description={`Created ${new Date(student.createdAt).toLocaleDateString()} - ${totalSessions} sessions recorded`}
+          footer={
+            <div className="flex flex-wrap gap-3 text-xs">
+              <button className="rounded-md border border-slate-700 px-3 py-1 hover:border-slate-500">Rename</button>
+              <button className="rounded-md border border-slate-700 px-3 py-1 hover:border-slate-500">Delete</button>
+            </div>
+          }
+        />
+
+        <Card title="Sessions" description="Auditable list of sessions tied to this student.">
+          {errorMessage ? (
+            <EmptyState
+              title="Unable to load sessions"
+              description={errorMessage}
+              actionLabel="Reload"
+              actionHref={`/students/${studentId}`}
+              aside={<span>If this persists, confirm your Supabase env vars and policies.</span>}
+            />
+          ) : (
+            <StudentSessionList studentId={studentId} />
+          )}
+        </Card>
+      </div>
+    </SessionListProvider>
   );
 }
 

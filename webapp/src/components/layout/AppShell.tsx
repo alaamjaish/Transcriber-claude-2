@@ -10,8 +10,7 @@ import { SelectedStudentProvider } from "@/components/layout/SelectedStudentProv
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/recordings", label: "Recordings" },
-  { href: "/students", label: "Students" },
-  { href: "/prompts", label: "Prompts" },
+  { href: "/prompts", label: "Prompts Library" },
 ];
 
 interface AppShellProps {
@@ -69,7 +68,18 @@ export function AppShell({
         <nav className="sticky top-0 z-20 -mx-6 border-y border-slate-800 bg-slate-950/80 px-6 backdrop-blur">
           <ul className="flex gap-6 overflow-x-auto py-4 text-sm font-semibold">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              // Smart navigation logic: individual student pages highlight Dashboard
+              const isIndividualStudentPage = pathname.startsWith('/students/') && pathname.split('/').length === 3;
+
+              let isActive;
+              if (item.href === '/dashboard') {
+                // Dashboard is active on /dashboard OR individual student pages
+                isActive = pathname === '/dashboard' || isIndividualStudentPage;
+              } else {
+                // Default logic for other nav items
+                isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              }
+
               return (
                 <li key={item.href}>
                   <Link
