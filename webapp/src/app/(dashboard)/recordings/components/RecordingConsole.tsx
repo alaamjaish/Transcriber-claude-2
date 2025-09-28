@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useMemo, useReducer } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 
 import { RecordingControls } from "./RecordingControls";
 import { StatusIndicator } from "./StatusIndicator";
@@ -47,6 +47,7 @@ type Action =
   | { type: "APPEND_LIVE"; segments: TranscriptSegment[]; speakerCount: number }
   | { type: "APPEND_FINAL"; segments: TranscriptSegment[]; speakerCount: number }
   | { type: "FINISH"; durationMs: number }
+  | { type: "TICK"; durationMs: number }
   | { type: "COMPLETE" }
   | { type: "ERROR"; message: string }
   | { type: "RESET" };
@@ -78,6 +79,8 @@ function reducer(state: RecordingState, action: Action): RecordingState {
         durationMs: action.durationMs,
         // Keep liveSegments - they now contain the complete cumulative transcript
       };
+    case "TICK":
+      return { ...state, durationMs: action.durationMs };
     case "COMPLETE":
       return {
         ...state,
@@ -125,7 +128,30 @@ export function RecordingConsole({ onStart, onStop, onCancel }: RecordingConsole
       reset: () => dispatch({ type: "RESET" }),
     }),
     [],
-  );
+   );
+
+  useEffect(() => {
+    if (state.phase !== "live") {
+      return;
+    }
+
+    const start = state.startedAt;
+    if (!start) {
+      return;
+    }
+
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      dispatch({ type: "TICK", durationMs: elapsed });
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [state.phase, state.startedAt]);
 
   const liveText = useMemo(
     () => state.liveSegments.map((segment) => `${segment.speaker}: ${segment.text}`).join("\n"),
@@ -194,7 +220,7 @@ export function RecordingConsole({ onStart, onStop, onCancel }: RecordingConsole
             dispatch({ type: "FINISH", durationMs: duration });
             try {
               const result: RecordingResult = {
-                transcript: state.liveSegments.map(segment => `${segment.speaker}: ${segment.text}`).join('\n'),
+                transcript: state.liveSegments.map(segment => `${segment.speaker}: ${segment.text}`).join("\\n"),
                 durationMs: duration,
                 speakerCount: state.speakerCount,
                 startedAt: state.startedAt
@@ -240,3 +266,6 @@ export function RecordingConsole({ onStart, onStop, onCancel }: RecordingConsole
     </section>
   );
 }
+
+
+
