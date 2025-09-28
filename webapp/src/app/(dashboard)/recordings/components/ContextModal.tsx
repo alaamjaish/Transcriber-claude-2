@@ -46,7 +46,6 @@ export function ContextModal({ isOpen, onClose, onGenerate, type, isPending }: C
 
   if (!isOpen) return null;
 
-  const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

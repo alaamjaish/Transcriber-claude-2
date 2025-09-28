@@ -87,6 +87,25 @@ export async function generateSessionArtifactsAction(
     return { summaryGenerated: false, homeworkGenerated: false };
   }
 
+  let promptOverride: string | undefined;
+
+  if (selectedPromptId) {
+    const { data: promptRow, error: promptError } = await supabase
+      .from("prompts")
+      .select("prompt_text")
+      .eq("id", selectedPromptId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (promptError) {
+      console.error("Failed to load selected prompt", promptError);
+    } else if (promptRow?.prompt_text) {
+      promptOverride = promptRow.prompt_text;
+    } else {
+      console.warn("Selected prompt not available for user", { selectedPromptId, userId: user.id });
+    }
+  }
+
   // Mark generation as started
   await supabase
     .from("sessions")
@@ -116,7 +135,7 @@ export async function generateSessionArtifactsAction(
 
   if (runSummary) {
     try {
-      const summaryMd = await generateSummary(transcript, userContext, selectedPromptId);
+      const summaryMd = await generateSummary(transcript, userContext, promptOverride);
       updates.summary_md = summaryMd;
       summaryGenerated = true;
     } catch (error) {
@@ -128,7 +147,7 @@ export async function generateSessionArtifactsAction(
 
   if (runHomework) {
     try {
-      const homeworkMd = await generateHomework(transcript, userContext, selectedPromptId);
+      const homeworkMd = await generateHomework(transcript, userContext, promptOverride);
       updates.homework_md = homeworkMd;
       homeworkGenerated = true;
     } catch (error) {

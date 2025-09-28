@@ -1,5 +1,4 @@
 import { HOMEWORK_INSTRUCTIONS, HOMEWORK_PROMPT, OPENAI_MODEL, SUMMARY_INSTRUCTIONS, SUMMARY_PROMPT } from "@/lib/ai/prompts";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 
@@ -41,35 +40,21 @@ async function callChatCompletion({ system, user, temperature = 1 }: ChatRequest
   return text?.trim() ?? "";
 }
 
-export async function generateSummary(transcript: string, userContext?: string, selectedPromptId?: string): Promise<string> {
+export async function generateSummary(
+  transcript: string,
+  userContext?: string,
+  promptOverride?: string,
+): Promise<string> {
   const content = transcript?.trim();
   if (!content) {
     throw new Error("No transcript provided");
   }
 
-  // Get custom prompt if selectedPromptId is provided
-  let promptText = SUMMARY_PROMPT;
-  if (selectedPromptId) {
-    try {
-      const supabase = await createSupabaseServerClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: prompt } = await supabase
-          .from("prompts")
-          .select("prompt_text")
-          .eq("id", selectedPromptId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (prompt) {
-          promptText = prompt.prompt_text;
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch custom prompt, using default:", error);
-    }
-  }
+  const basePromptText = promptOverride && promptOverride.trim().length > 0
+    ? promptOverride
+    : SUMMARY_PROMPT;
 
-  let userPrompt = `${promptText}\n\n---\nTRANSCRIPT:\n${content}`;
+  let userPrompt = `${basePromptText}\n\n---\nTRANSCRIPT:\n${content}`;
 
   if (userContext?.trim()) {
     userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
@@ -78,35 +63,21 @@ export async function generateSummary(transcript: string, userContext?: string, 
   return callChatCompletion({ system: SUMMARY_INSTRUCTIONS, user: userPrompt });
 }
 
-export async function generateHomework(transcript: string, userContext?: string, selectedPromptId?: string): Promise<string> {
+export async function generateHomework(
+  transcript: string,
+  userContext?: string,
+  promptOverride?: string,
+): Promise<string> {
   const content = transcript?.trim();
   if (!content) {
     throw new Error("No transcript provided");
   }
 
-  // Get custom prompt if selectedPromptId is provided
-  let promptText = HOMEWORK_PROMPT;
-  if (selectedPromptId) {
-    try {
-      const supabase = await createSupabaseServerClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: prompt } = await supabase
-          .from("prompts")
-          .select("prompt_text")
-          .eq("id", selectedPromptId)
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (prompt) {
-          promptText = prompt.prompt_text;
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch custom prompt, using default:", error);
-    }
-  }
+  const basePromptText = promptOverride && promptOverride.trim().length > 0
+    ? promptOverride
+    : HOMEWORK_PROMPT;
 
-  let userPrompt = `${promptText}\n\n---\nTRANSCRIPT:\n${content}`;
+  let userPrompt = `${basePromptText}\n\n---\nTRANSCRIPT:\n${content}`;
 
   if (userContext?.trim()) {
     userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
