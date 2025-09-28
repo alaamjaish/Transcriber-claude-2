@@ -36,3 +36,12 @@ export interface TeacherPreference {
   currentStudentId?: string;
   updatedAt: string;
 }
+
+export interface Prompt {
+  id: string;
+  userId: string;
+  name: string;
+  promptText: string;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Session, Student } from "@/lib/types";
+import type { Session, Student, Prompt } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 
 const PAGE_SIZE = 10;
@@ -177,5 +177,28 @@ export async function loadSessionsForStudent(studentId: string): Promise<Session
   }
 
   return (data as StudentSessionQueryResult[] | null)?.map(buildSession) ?? [];
+}
+
+export async function loadPrompts(): Promise<Prompt[]> {
+  const { client, userId } = await requireSupabaseContext();
+
+  const { data, error } = await client
+    .from("prompts")
+    .select("id, name, prompt_text, created_at, updated_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    userId,
+    name: row.name,
+    promptText: row.prompt_text,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
 }
 

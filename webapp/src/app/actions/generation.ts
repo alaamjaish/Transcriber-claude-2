@@ -15,6 +15,7 @@ export async function generateSessionArtifactsAction(
   sessionId: string,
   options?: { summary?: boolean; homework?: boolean },
   userContext?: string,
+  selectedPromptId?: string,
 ): Promise<GenerationResult> {
   if (!sessionId) {
     throw new Error("Session ID is required");
@@ -115,7 +116,7 @@ export async function generateSessionArtifactsAction(
 
   if (runSummary) {
     try {
-      const summaryMd = await generateSummary(transcript, userContext);
+      const summaryMd = await generateSummary(transcript, userContext, selectedPromptId);
       updates.summary_md = summaryMd;
       summaryGenerated = true;
     } catch (error) {
@@ -127,7 +128,7 @@ export async function generateSessionArtifactsAction(
 
   if (runHomework) {
     try {
-      const homeworkMd = await generateHomework(transcript, userContext);
+      const homeworkMd = await generateHomework(transcript, userContext, selectedPromptId);
       updates.homework_md = homeworkMd;
       homeworkGenerated = true;
     } catch (error) {

@@ -100,11 +100,11 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
   );
 
   const regenerateSummary = useCallback(
-    (sessionId: string, context?: string) => {
+    (sessionId: string, context?: string, selectedPromptId?: string) => {
       setPending(sessionId, "summary", true);
 
       // Fire-and-forget: Start generation without blocking UI
-      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }, context).catch((error) => {
+      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }, context, selectedPromptId).catch((error) => {
         console.error("Summary generation error", error);
         alert("Failed to start summary generation. Please try again.");
         setPending(sessionId, "summary", false);
@@ -117,11 +117,11 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
   );
 
   const regenerateHomework = useCallback(
-    (sessionId: string, context?: string) => {
+    (sessionId: string, context?: string, selectedPromptId?: string) => {
       setPending(sessionId, "homework", true);
 
       // Fire-and-forget: Start generation without blocking UI
-      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }, context).catch((error) => {
+      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }, context, selectedPromptId).catch((error) => {
         console.error("Homework generation error", error);
         alert("Failed to start homework generation. Please try again.");
         setPending(sessionId, "homework", false);
@@ -141,12 +141,12 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
     setContextModal({ isOpen: false, sessionId: "", type: "summary" });
   }, []);
 
-  const handleGenerateWithContext = useCallback((context: string) => {
+  const handleGenerateWithContext = useCallback((context: string, selectedPromptId?: string) => {
     const { sessionId, type } = contextModal;
     if (type === "summary") {
-      regenerateSummary(sessionId, context);
+      regenerateSummary(sessionId, context, selectedPromptId);
     } else {
-      regenerateHomework(sessionId, context);
+      regenerateHomework(sessionId, context, selectedPromptId);
     }
     closeContextModal();
   }, [contextModal, regenerateSummary, regenerateHomework, closeContextModal]);

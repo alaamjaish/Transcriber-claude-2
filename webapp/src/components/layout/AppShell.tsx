@@ -10,6 +10,7 @@ import { SelectedStudentProvider } from "@/components/layout/SelectedStudentProv
 const navItems = [
   { href: "/recordings", label: "Recordings" },
   { href: "/students", label: "Students" },
+  { href: "/prompts", label: "Prompts" },
   { href: "/settings", label: "Settings" },
 ];
 
