@@ -1,4 +1,6 @@
 ﻿import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const sections = [
   {
@@ -21,7 +23,16 @@ const sections = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  // Check if user is authenticated
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // If user is authenticated, redirect to recordings
+  if (user) {
+    redirect("/recordings");
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-16 px-6 py-24">
       <header className="space-y-4 text-center md:text-left">

@@ -7,6 +7,7 @@ import { generateSessionArtifactsAction } from "@/app/actions/generation";
 import { deleteSessionAction } from "@/app/actions/sessions";
 import type { Session } from "@/lib/types";
 import { statusLabel } from "@/lib/placeholder-data";
+import { ContextModal } from "../../../recordings/components/ContextModal";
 
 type PanelKey = "transcript" | "summary" | "homework";
 type PanelState = Record<PanelKey, boolean>;
@@ -30,6 +31,11 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
   const router = useRouter();
   const [openPanels, setOpenPanels] = useState<Record<string, PanelState>>({});
   const [pendingGenerations, setPendingGenerations] = useState<PendingMap>({});
+  const [contextModal, setContextModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    type: "summary" | "homework";
+  }>({ isOpen: false, sessionId: "", type: "summary" });
 
   const togglePanel = useCallback((sessionId: string, panel: PanelKey) => {
     setOpenPanels((prev) => {
@@ -94,11 +100,11 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
   );
 
   const regenerateSummary = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, context?: string) => {
       setPending(sessionId, "summary", true);
 
       // Fire-and-forget: Start generation without blocking UI
-      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }).catch((error) => {
+      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }, context).catch((error) => {
         console.error("Summary generation error", error);
         alert("Failed to start summary generation. Please try again.");
         setPending(sessionId, "summary", false);
@@ -111,11 +117,11 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
   );
 
   const regenerateHomework = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, context?: string) => {
       setPending(sessionId, "homework", true);
 
       // Fire-and-forget: Start generation without blocking UI
-      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }).catch((error) => {
+      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }, context).catch((error) => {
         console.error("Homework generation error", error);
         alert("Failed to start homework generation. Please try again.");
         setPending(sessionId, "homework", false);
@@ -126,6 +132,24 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
     },
     [router, setPending],
   );
+
+  const openContextModal = useCallback((sessionId: string, type: "summary" | "homework") => {
+    setContextModal({ isOpen: true, sessionId, type });
+  }, []);
+
+  const closeContextModal = useCallback(() => {
+    setContextModal({ isOpen: false, sessionId: "", type: "summary" });
+  }, []);
+
+  const handleGenerateWithContext = useCallback((context: string) => {
+    const { sessionId, type } = contextModal;
+    if (type === "summary") {
+      regenerateSummary(sessionId, context);
+    } else {
+      regenerateHomework(sessionId, context);
+    }
+    closeContextModal();
+  }, [contextModal, regenerateSummary, regenerateHomework, closeContextModal]);
 
   useEffect(() => {
     setPendingGenerations((prev) => {
@@ -284,7 +308,7 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
                   </button>
                   <button
                     className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
-                    onClick={() => regenerateSummary(session.id)}
+                    onClick={() => openContextModal(session.id, "summary")}
                     disabled={!hasTranscript || summaryPending}
                   >
                     {summaryPending ? "Generating..." : summaryReady ? "Regenerate" : "Generate"}
@@ -326,7 +350,7 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
                   </button>
                   <button
                     className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
-                    onClick={() => regenerateHomework(session.id)}
+                    onClick={() => openContextModal(session.id, "homework")}
                     disabled={!hasTranscript || homeworkPending}
                   >
                     {homeworkPending ? "Generating..." : homeworkReady ? "Regenerate" : "Generate"}
@@ -342,6 +366,14 @@ export function StudentSessionList({ sessions }: StudentSessionListProps) {
           </article>
         );
       })}
+
+      <ContextModal
+        isOpen={contextModal.isOpen}
+        onClose={closeContextModal}
+        onGenerate={handleGenerateWithContext}
+        type={contextModal.type}
+        isPending={pendingGenerations[contextModal.sessionId]?.[contextModal.type] ?? false}
+      />
     </div>
   );
 }

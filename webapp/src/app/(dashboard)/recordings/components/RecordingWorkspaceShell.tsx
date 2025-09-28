@@ -41,9 +41,6 @@ export function RecordingWorkspaceShell() {
   const router = useRouter();
   const { appendSession } = useSessionList();
 
-  const [includeSystemAudio, setIncludeSystemAudio] = useState(false);
-  const [micGain, setMicGain] = useState(1);
-  const [systemGain, setSystemGain] = useState(1);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -101,9 +98,9 @@ export function RecordingWorkspaceShell() {
         }
 
         const stream = await mixer.start({
-          includeSystemAudio,
-          micGain,
-          systemGain,
+          includeSystemAudio: false,
+          micGain: 1,
+          systemGain: 1,
         });
 
         actions.setLive(Date.now());
@@ -122,7 +119,7 @@ export function RecordingWorkspaceShell() {
         throw err;
       }
     },
-    [fetchToken, mixer, soniox, includeSystemAudio, micGain, systemGain],
+    [fetchToken, mixer, soniox],
   );
 
   const handleStart = useCallback(
@@ -314,51 +311,6 @@ export function RecordingWorkspaceShell() {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-600 bg-slate-900"
-            checked={includeSystemAudio}
-            onChange={(event) => setIncludeSystemAudio(event.target.checked)}
-          />
-          Capture system audio
-        </label>
-        <label className="flex items-center gap-2">
-          Mic gain
-          <input
-            type="range"
-            className="h-1 w-32"
-            min="0"
-            max="3"
-            step="0.1"
-            value={micGain}
-            onChange={(event) => {
-              const value = Number(event.target.value);
-              setMicGain(value);
-              mixer.setMicGain(value);
-            }}
-          />
-          <span className="text-slate-300">{micGain.toFixed(1)}x</span>
-        </label>
-        <label className="flex items-center gap-2">
-          System gain
-          <input
-            type="range"
-            className="h-1 w-32"
-            min="0"
-            max="3"
-            step="0.1"
-            value={systemGain}
-            onChange={(event) => {
-              const value = Number(event.target.value);
-              setSystemGain(value);
-              mixer.setSystemGain(value);
-            }}
-          />
-          <span className="text-slate-300">{systemGain.toFixed(1)}x</span>
-        </label>
-      </div>
 
       <StudentPickerDialog
         open={pickerOpen}

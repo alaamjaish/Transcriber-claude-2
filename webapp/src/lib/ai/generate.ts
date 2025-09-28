@@ -40,22 +40,32 @@ async function callChatCompletion({ system, user, temperature = 1 }: ChatRequest
   return text?.trim() ?? "";
 }
 
-export async function generateSummary(transcript: string): Promise<string> {
+export async function generateSummary(transcript: string, userContext?: string): Promise<string> {
   const content = transcript?.trim();
   if (!content) {
     throw new Error("No transcript provided");
   }
 
-  const userPrompt = `${SUMMARY_PROMPT}\n\n---\nTRANSCRIPT:\n${content}`;
+  let userPrompt = `${SUMMARY_PROMPT}\n\n---\nTRANSCRIPT:\n${content}`;
+
+  if (userContext?.trim()) {
+    userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
+  }
+
   return callChatCompletion({ system: SUMMARY_INSTRUCTIONS, user: userPrompt });
 }
 
-export async function generateHomework(transcript: string): Promise<string> {
+export async function generateHomework(transcript: string, userContext?: string): Promise<string> {
   const content = transcript?.trim();
   if (!content) {
     throw new Error("No transcript provided");
   }
 
-  const userPrompt = `${HOMEWORK_PROMPT}\n\n---\nTRANSCRIPT:\n${content}`;
+  let userPrompt = `${HOMEWORK_PROMPT}\n\n---\nTRANSCRIPT:\n${content}`;
+
+  if (userContext?.trim()) {
+    userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
+  }
+
   return callChatCompletion({ system: HOMEWORK_INSTRUCTIONS, user: userPrompt });
 }

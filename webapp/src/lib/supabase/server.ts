@@ -10,8 +10,8 @@ type MutableCookieStore = {
   delete?: (name: string, options?: CookieOptions) => void;
 };
 
-export function createSupabaseServerClient() {
-  const cookieStore = cookies() as unknown as MutableCookieStore;
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies() as unknown as MutableCookieStore;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

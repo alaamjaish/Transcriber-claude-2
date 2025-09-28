@@ -7,6 +7,20 @@ import { generateSessionArtifactsAction } from "@/app/actions/generation";
 import { deleteSessionAction } from "@/app/actions/sessions";
 import { useSessionList } from "./SessionListProvider";
 import { statusLabel } from "@/lib/placeholder-data";
+import { ContextModal } from "./ContextModal";
+
+function GeneratingDots() {
+  return (
+    <span className="inline-flex items-center gap-1">
+      Generating
+      <span className="flex space-x-1">
+        <span className="w-1 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '0ms'}}></span>
+        <span className="w-1 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '200ms'}}></span>
+        <span className="w-1 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '400ms'}}></span>
+      </span>
+    </span>
+  );
+}
 
 type PanelKey = "transcript" | "summary" | "homework";
 
@@ -28,6 +42,11 @@ export function SessionList() {
   const { sessions, updateSession, removeSession } = useSessionList();
   const [openPanels, setOpenPanels] = useState<Record<string, PanelState>>({});
   const [pendingGenerations, setPendingGenerations] = useState<PendingMap>({});
+  const [contextModal, setContextModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    type: "summary" | "homework";
+  }>({ isOpen: false, sessionId: "", type: "summary" });
 
   const togglePanel = useCallback((sessionId: string, panel: PanelKey) => {
     setOpenPanels((prev) => {
@@ -98,7 +117,7 @@ export function SessionList() {
   );
 
   const regenerateSummary = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, context?: string) => {
       setPending(sessionId, "summary", true);
 
       updateSession(sessionId, (session) => ({
@@ -107,7 +126,7 @@ export function SessionList() {
         generationStatus: "generating",
       }));
 
-      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }).catch((error) => {
+      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }, context).catch((error) => {
         console.error("Summary generation error", error);
         alert("Failed to start summary generation. Please try again.");
         setPending(sessionId, "summary", false);
@@ -125,7 +144,7 @@ export function SessionList() {
   );
 
   const regenerateHomework = useCallback(
-    (sessionId: string) => {
+    (sessionId: string, context?: string) => {
       setPending(sessionId, "homework", true);
 
       updateSession(sessionId, (session) => ({
@@ -134,7 +153,7 @@ export function SessionList() {
         generationStatus: "generating",
       }));
 
-      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }).catch((error) => {
+      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }, context).catch((error) => {
         console.error("Homework generation error", error);
         alert("Failed to start homework generation. Please try again.");
         setPending(sessionId, "homework", false);
@@ -150,6 +169,24 @@ export function SessionList() {
     },
     [router, setPending, updateSession],
   );
+
+  const openContextModal = useCallback((sessionId: string, type: "summary" | "homework") => {
+    setContextModal({ isOpen: true, sessionId, type });
+  }, []);
+
+  const closeContextModal = useCallback(() => {
+    setContextModal({ isOpen: false, sessionId: "", type: "summary" });
+  }, []);
+
+  const handleGenerateWithContext = useCallback((context: string) => {
+    const { sessionId, type } = contextModal;
+    if (type === "summary") {
+      regenerateSummary(sessionId, context);
+    } else {
+      regenerateHomework(sessionId, context);
+    }
+    closeContextModal();
+  }, [contextModal, regenerateSummary, regenerateHomework, closeContextModal]);
 
   useEffect(() => {
     setPendingGenerations((prev) => {
@@ -243,9 +280,22 @@ export function SessionList() {
                 <p className="text-xs text-slate-500">Duration: {durationLabel}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 md:justify-end">
-                <span className="rounded-full border border-slate-800 px-3 py-1 text-slate-200">
-                  {headerPending ? "Generating" : statusLabel(session.generationStatus)}
-                </span>
+                {headerPending ? (
+                  <span className="rounded-full border border-slate-600 bg-slate-800/50 text-slate-300 hover:border-slate-500 px-3 py-1 transition-colors cursor-default">
+                    <GeneratingDots />
+                  </span>
+                ) : session.generationStatus === "complete" || (summaryReady && homeworkReady) ? (
+                  <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Complete
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-slate-800 bg-slate-900/50 text-slate-200 hover:border-slate-600 px-3 py-1 transition-colors cursor-default">
+                    {statusLabel(session.generationStatus)}
+                  </span>
+                )}
                 <button
                   className="rounded-md border border-blue-600 bg-blue-600/10 px-3 py-1 text-blue-300 hover:bg-blue-600/20"
                   onClick={() => togglePanel(session.id, "transcript")}
@@ -253,14 +303,14 @@ export function SessionList() {
                   {transcriptOpen ? "Hide transcript" : "View transcript"}
                 </button>
                 <button
-                  className="rounded-md border border-slate-700 px-3 py-1"
+                  className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                   onClick={() => copyToClipboard(transcript, "Transcript copied to clipboard.")}
                   disabled={!hasTranscript}
                 >
                   Copy
                 </button>
                 <button
-                  className="rounded-md border border-slate-700 px-3 py-1"
+                  className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                   onClick={() => downloadText(transcript, `${fileBase}.txt`)}
                   disabled={!hasTranscript}
                 >
@@ -294,14 +344,14 @@ export function SessionList() {
                     {summaryOpen ? "Hide" : "View"}
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => copyToClipboard(summary, "Summary copied to clipboard.")}
                     disabled={!summaryReady}
                   >
                     Copy .md
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => downloadText(summary, `${fileBase}-summary.md`)}
                     disabled={!summaryReady}
                   >
@@ -309,7 +359,7 @@ export function SessionList() {
                   </button>
                   <button
                     className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
-                    onClick={() => regenerateSummary(session.id)}
+                    onClick={() => openContextModal(session.id, "summary")}
                     disabled={!hasTranscript || summaryPending}
                   >
                     {summaryPending ? "Generating..." : summaryReady ? "Regenerate" : "Generate"}
@@ -336,14 +386,14 @@ export function SessionList() {
                     {homeworkOpen ? "Hide" : "View"}
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => copyToClipboard(homework, "Homework copied to clipboard.")}
                     disabled={!homeworkReady}
                   >
                     Copy .md
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1"
+                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => downloadText(homework, `${fileBase}-homework.md`)}
                     disabled={!homeworkReady}
                   >
@@ -351,7 +401,7 @@ export function SessionList() {
                   </button>
                   <button
                     className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
-                    onClick={() => regenerateHomework(session.id)}
+                    onClick={() => openContextModal(session.id, "homework")}
                     disabled={!hasTranscript || homeworkPending}
                   >
                     {homeworkPending ? "Generating..." : homeworkReady ? "Regenerate" : "Generate"}
@@ -367,6 +417,14 @@ export function SessionList() {
           </article>
         );
       })}
+
+      <ContextModal
+        isOpen={contextModal.isOpen}
+        onClose={closeContextModal}
+        onGenerate={handleGenerateWithContext}
+        type={contextModal.type}
+        isPending={pendingGenerations[contextModal.sessionId]?.[contextModal.type] ?? false}
+      />
     </div>
   );
 }
