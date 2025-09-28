@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,7 +11,6 @@ const navItems = [
   { href: "/recordings", label: "Recordings" },
   { href: "/students", label: "Students" },
   { href: "/prompts", label: "Prompts" },
-  { href: "/settings", label: "Settings" },
 ];
 
 interface AppShellProps {
@@ -111,3 +110,4 @@ function SignOutButton() {
     </button>
   );
 }
+
