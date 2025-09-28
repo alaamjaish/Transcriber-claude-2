@@ -85,6 +85,34 @@ export type Database = {
         }
         Relationships: []
       }
+
+      prompts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          prompt_text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          prompt_text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          prompt_text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       teacher_preferences: {
         Row: {
           current_student_id: string | null
