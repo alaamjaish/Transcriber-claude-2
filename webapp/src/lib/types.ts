@@ -7,6 +7,11 @@ export interface Student {
   totalSessions?: number;
 }
 
+export interface DashboardStudent extends Student {
+  totalSessions: number;
+  lastSessionDate?: string;
+}
+
 export interface Session {
   id: string;
   studentId?: string;

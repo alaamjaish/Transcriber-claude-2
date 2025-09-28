@@ -8,6 +8,7 @@ import { useFormStatus } from "react-dom";
 import { SelectedStudentProvider } from "@/components/layout/SelectedStudentProvider";
 
 const navItems = [
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/recordings", label: "Recordings" },
   { href: "/students", label: "Students" },
   { href: "/prompts", label: "Prompts" },

@@ -24,7 +24,7 @@ export async function signInAction(_: AuthFormState, formData: FormData): Promis
     return { message: "Unable to sign in. Check configuration.", messageType: "error" };
   }
 
-  redirect("/recordings");
+  redirect("/dashboard");
 }
 
 export async function signUpAction(_: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -60,7 +60,7 @@ export async function signUpAction(_: AuthFormState, formData: FormData): Promis
     return { message: "Unable to sign up. Check configuration.", messageType: "error" };
   }
 
-  redirect("/recordings");
+  redirect("/dashboard");
 }
 
 export async function signOutAction() {

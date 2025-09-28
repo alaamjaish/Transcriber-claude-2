@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Session, Student, Prompt } from "@/lib/types";
+import type { Session, Student, Prompt, DashboardStudent } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 
 const PAGE_SIZE = 10;
@@ -199,6 +199,67 @@ export async function loadPrompts(): Promise<Prompt[]> {
     promptText: row.prompt_text,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }));
+}
+
+export async function loadStudentsWithSessionCounts(): Promise<DashboardStudent[]> {
+  const { client, userId } = await requireSupabaseContext();
+
+  // First get all students
+  const { data: studentsData, error: studentsError } = await client
+    .from("students")
+    .select("id, name, created_at")
+    .eq("owner_user_id", userId)
+    .order("name", { ascending: true });
+
+  if (studentsError) {
+    throw studentsError;
+  }
+
+  const students = studentsData || [];
+
+  // If no students, return empty array
+  if (students.length === 0) {
+    return [];
+  }
+
+  // Get session counts and last session dates for all students
+  const studentIds = students.map(s => s.id);
+
+  const { data: sessionData, error: sessionError } = await client
+    .from("sessions")
+    .select("student_id, timestamp")
+    .eq("owner_user_id", userId)
+    .in("student_id", studentIds)
+    .order("timestamp", { ascending: false });
+
+  if (sessionError) {
+    throw sessionError;
+  }
+
+  // Process session data to get counts and last dates
+  const sessionStats: Record<string, { count: number; lastDate?: string }> = {};
+
+  for (const session of sessionData || []) {
+    const studentId = session.student_id;
+    if (!sessionStats[studentId]) {
+      sessionStats[studentId] = { count: 0 };
+    }
+    sessionStats[studentId].count++;
+
+    // Set last session date (first one due to desc order)
+    if (!sessionStats[studentId].lastDate) {
+      sessionStats[studentId].lastDate = session.timestamp;
+    }
+  }
+
+  // Build dashboard students with session data
+  return students.map((student): DashboardStudent => ({
+    id: student.id,
+    name: student.name,
+    createdAt: student.created_at,
+    totalSessions: sessionStats[student.id]?.count || 0,
+    lastSessionDate: sessionStats[student.id]?.lastDate,
   }));
 }
 

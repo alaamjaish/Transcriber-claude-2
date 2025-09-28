@@ -28,9 +28,9 @@ export default async function Home() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // If user is authenticated, redirect to recordings
+  // If user is authenticated, redirect to dashboard
   if (user) {
-    redirect("/recordings");
+    redirect("/dashboard");
   }
 
   return (
