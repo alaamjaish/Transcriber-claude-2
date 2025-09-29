@@ -282,7 +282,7 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
                     <article key={session.id} className="space-y-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
             <header className="space-y-2">
               <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="text-sm font-semibold text-slate-100">{session.studentName ?? "Student Sessiond"}</span>
+                <span className="text-sm font-semibold text-slate-100">{session.studentName ?? "Student Session"}</span>
                 {headerPending ? (
                   <span className="rounded-full border border-slate-600 bg-slate-800/50 text-slate-300 hover:border-slate-500 px-3 py-1 transition-colors cursor-default">
                     <GeneratingDots />
