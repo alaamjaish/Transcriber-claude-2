@@ -273,29 +273,27 @@ export function SessionList() {
 
         return (
           <article key={session.id} className="space-y-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
-            <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-100">{session.studentName ?? "Unassigned"}</p>
-                <p className="text-xs text-slate-500">{timestampLabel}</p>
-                <p className="text-xs text-slate-500">Duration: {durationLabel}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 md:justify-end">
+            <header className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="text-sm font-semibold text-slate-100">{session.studentName ?? "Unassigned"}</span>
                 {headerPending ? (
                   <span className="rounded-full border border-slate-600 bg-slate-800/50 text-slate-300 hover:border-slate-500 px-3 py-1 transition-colors cursor-default">
                     <GeneratingDots />
                   </span>
                 ) : session.generationStatus === "complete" || (summaryReady && homeworkReady) ? (
                   <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                    Complete
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    Complete
                   </span>
                 ) : (
                   <span className="rounded-full border border-slate-800 bg-slate-900/50 text-slate-200 hover:border-slate-600 px-3 py-1 transition-colors cursor-default">
                     {statusLabel(session.generationStatus)}
                   </span>
                 )}
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
                 <button
                   className="rounded-md border border-blue-600 bg-blue-600/10 px-3 py-1 text-blue-300 hover:bg-blue-600/20"
                   onClick={() => togglePanel(session.id, "transcript")}
@@ -323,7 +321,13 @@ export function SessionList() {
                   Delete
                 </button>
               </div>
+              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
+                <span>{timestampLabel}</span>
+                <span className="hidden sm:inline">?</span>
+                <span>Duration: {durationLabel}</span>
+              </div>
             </header>
+
 
             {transcriptOpen ? (
               <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-200">
@@ -331,7 +335,7 @@ export function SessionList() {
               </pre>
             ) : null}
 
-            <section className="space-y-2 rounded-xl border border-slate-900/80 bg-slate-950/50 p-3">
+            <section className="space-y-3 rounded-xl border border-slate-800/70 bg-slate-900/40 p-4 shadow-inner shadow-black/10">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Summary</span>
                 <span className="text-xs text-slate-400">{summaryStatus}</span>
@@ -373,7 +377,7 @@ export function SessionList() {
               ) : null}
             </section>
 
-            <section className="space-y-2 rounded-xl border border-slate-900/80 bg-slate-950/50 p-3">
+            <section className="space-y-3 rounded-xl border border-slate-800/70 bg-slate-900/40 p-4 shadow-inner shadow-black/10">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Homework</span>
                 <span className="text-xs text-slate-400">{homeworkStatus}</span>
@@ -428,4 +432,7 @@ export function SessionList() {
     </div>
   );
 }
+
+
+
 

@@ -44,7 +44,7 @@ export default async function StudentPage({ params }: StudentPageProps) {
     <SessionListProvider initialSessions={sessions}>
       <div className="space-y-8">
         <Card
-          title="Transcription Area"
+          title={`${student.name}'s Workspace`}
           description={`Record a new session for ${student.name}`}
         >
           <StudentRecordingInterface student={student} />
@@ -61,7 +61,7 @@ export default async function StudentPage({ params }: StudentPageProps) {
           }
         />
 
-        <Card title="Sessions" description="Auditable list of sessions tied to this student.">
+        <Card title={`${student.name}'s Sessions`} description="Auditable list of sessions tied to this student.">
           {errorMessage ? (
             <EmptyState
               title="Unable to load sessions"
