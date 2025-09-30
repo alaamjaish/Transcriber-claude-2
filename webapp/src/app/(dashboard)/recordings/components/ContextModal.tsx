@@ -17,32 +17,53 @@ export function ContextModal({ isOpen, onClose, onGenerate, type, isPending }: C
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string>("default");
   const [promptsLoading, setPromptsLoading] = useState(false);
+  const [defaultPromptId, setDefaultPromptId] = useState<string | null>(null);
 
   const handleGenerate = () => {
     const promptId = selectedPromptId === "default" ? undefined : selectedPromptId;
     onGenerate(context.trim(), promptId);
     setContext("");
-    setSelectedPromptId("default");
+    // Reset to user's default after generation
+    setSelectedPromptId(defaultPromptId || "default");
   };
 
   const handleClose = () => {
     onClose();
     setContext("");
-    setSelectedPromptId("default");
+    // Reset to user's default on close
+    setSelectedPromptId(defaultPromptId || "default");
   };
 
-  // Load prompts when modal opens
+  // Load prompts and user preferences when modal opens
   useEffect(() => {
-    if (isOpen && prompts.length === 0) {
-      setPromptsLoading(true);
-      listPromptsAction()
-        .then(setPrompts)
-        .catch(error => {
-          console.error("Failed to load prompts:", error);
+    if (isOpen) {
+      // Load custom prompts
+      if (prompts.length === 0) {
+        setPromptsLoading(true);
+        listPromptsAction()
+          .then(setPrompts)
+          .catch(error => {
+            console.error("Failed to load prompts:", error);
+          })
+          .finally(() => setPromptsLoading(false));
+      }
+
+      // Load user preferences
+      fetch("/api/preferences")
+        .then(res => res.json())
+        .then(prefs => {
+          const defaultId = type === "summary"
+            ? prefs.defaultSummaryPromptId
+            : prefs.defaultHomeworkPromptId;
+
+          setDefaultPromptId(defaultId || null);
+          setSelectedPromptId(defaultId || "default");
         })
-        .finally(() => setPromptsLoading(false));
+        .catch(error => {
+          console.error("Failed to load preferences:", error);
+        });
     }
-  }, [isOpen, prompts.length]);
+  }, [isOpen, prompts.length, type]);
 
   if (!isOpen) return null;
 

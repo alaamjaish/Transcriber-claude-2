@@ -373,11 +373,11 @@ export function SessionList() {
                   </pre>
                 )}
 
-                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer" onClick={() => togglePanel(session.id, "summary")}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Summary</span>
                     <span className="text-xs text-slate-600 dark:text-slate-400">{summaryStatus}</span>
-                    <div className="flex flex-wrap gap-2 md:ml-auto">
+                    <div className="flex flex-wrap gap-2 md:ml-auto" onClick={(e) => e.stopPropagation()}>
                       <button
                         className="rounded-md border border-sky-500 bg-sky-50 dark:bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
                         onClick={() => togglePanel(session.id, "summary")}
@@ -409,17 +409,19 @@ export function SessionList() {
                     </div>
                   </div>
                   {summaryOpen && (
-                    <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
-                      {summaryReady ? summary : "Summary not available yet."}
-                    </pre>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
+                        {summaryReady ? summary : "Summary not available yet."}
+                      </pre>
+                    </div>
                   )}
                 </section>
 
-                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer" onClick={() => togglePanel(session.id, "homework")}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Homework</span>
                     <span className="text-xs text-slate-600 dark:text-slate-400">{homeworkStatus}</span>
-                    <div className="flex flex-wrap gap-2 md:ml-auto">
+                    <div className="flex flex-wrap gap-2 md:ml-auto" onClick={(e) => e.stopPropagation()}>
                       <button
                         className="rounded-md border border-sky-500 bg-sky-50 dark:bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
                         onClick={() => togglePanel(session.id, "homework")}
@@ -451,9 +453,11 @@ export function SessionList() {
                     </div>
                   </div>
                   {homeworkOpen && (
-                    <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
-                      {homeworkReady ? homework : "Homework not available yet."}
-                    </pre>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
+                        {homeworkReady ? homework : "Homework not available yet."}
+                      </pre>
+                    </div>
                   )}
                 </section>
               </div>

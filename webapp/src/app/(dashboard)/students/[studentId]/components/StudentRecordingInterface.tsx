@@ -214,7 +214,13 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
         </p>
       ) : null}
 
-      <RecordingConsole onStart={handleStart} onStop={handleStop} onCancel={handleCancel} />
+      <RecordingConsole
+        title={`${student.name} Recording Console`}
+        subtitle="Monitor live transcription and manage session capture."
+        onStart={handleStart}
+        onStop={handleStop}
+        onCancel={handleCancel}
+      />
 
       {(tokenLoading || mixer.state.requesting || savingSession) && (
         <p className="text-xs text-slate-500 dark:text-slate-500">

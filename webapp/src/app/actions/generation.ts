@@ -87,8 +87,10 @@ export async function generateSessionArtifactsAction(
     return { summaryGenerated: false, homeworkGenerated: false };
   }
 
-  let promptOverride: string | undefined;
+  let summaryPromptOverride: string | undefined;
+  let homeworkPromptOverride: string | undefined;
 
+  // If user manually selected a prompt, use it for both summary and homework
   if (selectedPromptId) {
     const { data: promptRow, error: promptError } = await supabase
       .from("prompts")
@@ -100,9 +102,47 @@ export async function generateSessionArtifactsAction(
     if (promptError) {
       console.error("Failed to load selected prompt", promptError);
     } else if (promptRow?.prompt_text) {
-      promptOverride = promptRow.prompt_text;
+      summaryPromptOverride = promptRow.prompt_text;
+      homeworkPromptOverride = promptRow.prompt_text;
     } else {
       console.warn("Selected prompt not available for user", { selectedPromptId, userId: user.id });
+    }
+  } else {
+    // No manual selection - load user's default prompts
+    const { data: prefs, error: prefsError } = await supabase
+      .from("teacher_preferences")
+      .select("default_summary_prompt_id, default_homework_prompt_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!prefsError && prefs) {
+      // Load default summary prompt if set
+      if (runSummary && prefs.default_summary_prompt_id) {
+        const { data: summaryPromptRow } = await supabase
+          .from("prompts")
+          .select("prompt_text")
+          .eq("id", prefs.default_summary_prompt_id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (summaryPromptRow?.prompt_text) {
+          summaryPromptOverride = summaryPromptRow.prompt_text;
+        }
+      }
+
+      // Load default homework prompt if set
+      if (runHomework && prefs.default_homework_prompt_id) {
+        const { data: homeworkPromptRow } = await supabase
+          .from("prompts")
+          .select("prompt_text")
+          .eq("id", prefs.default_homework_prompt_id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (homeworkPromptRow?.prompt_text) {
+          homeworkPromptOverride = homeworkPromptRow.prompt_text;
+        }
+      }
     }
   }
 
@@ -135,7 +175,7 @@ export async function generateSessionArtifactsAction(
 
   if (runSummary) {
     try {
-      const summaryMd = await generateSummary(transcript, userContext, promptOverride);
+      const summaryMd = await generateSummary(transcript, userContext, summaryPromptOverride);
       updates.summary_md = summaryMd;
       summaryGenerated = true;
     } catch (error) {
@@ -147,7 +187,7 @@ export async function generateSessionArtifactsAction(
 
   if (runHomework) {
     try {
-      const homeworkMd = await generateHomework(transcript, userContext, promptOverride);
+      const homeworkMd = await generateHomework(transcript, userContext, homeworkPromptOverride);
       updates.homework_md = homeworkMd;
       homeworkGenerated = true;
     } catch (error) {

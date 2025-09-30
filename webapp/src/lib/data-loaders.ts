@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Session, Student, Prompt, DashboardStudent } from "@/lib/types";
+import type { Session, Student, Prompt, DashboardStudent, TeacherPreference } from "@/lib/types";
 import type { Database } from "@/lib/database.types";
 
 const PAGE_SIZE = 10;
@@ -200,6 +200,33 @@ export async function loadPrompts(): Promise<Prompt[]> {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
+}
+
+export async function loadUserPreferences(): Promise<TeacherPreference | null> {
+  const { client, userId } = await requireSupabaseContext();
+
+  const { data, error } = await client
+    .from("teacher_preferences")
+    .select("user_id, current_student_id, default_summary_prompt_id, default_homework_prompt_id, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load user preferences", error);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    userId: data.user_id,
+    currentStudentId: data.current_student_id ?? undefined,
+    defaultSummaryPromptId: data.default_summary_prompt_id ?? undefined,
+    defaultHomeworkPromptId: data.default_homework_prompt_id ?? undefined,
+    updatedAt: data.updated_at,
+  };
 }
 
 export async function loadStudentsWithSessionCounts(): Promise<DashboardStudent[]> {

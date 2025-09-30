@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/prompts", label: "Prompts Library" },
+  { href: "/settings", label: "Settings" },
 ];
 
 interface AppShellProps {

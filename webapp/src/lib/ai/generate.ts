@@ -50,17 +50,24 @@ export async function generateSummary(
     throw new Error("No transcript provided");
   }
 
-  const basePromptText = promptOverride && promptOverride.trim().length > 0
+  // When custom prompt provided, it becomes the system instruction
+  const systemInstruction = promptOverride && promptOverride.trim().length > 0
     ? promptOverride
+    : SUMMARY_INSTRUCTIONS;
+
+  const basePromptText = promptOverride && promptOverride.trim().length > 0
+    ? "" // Don't duplicate in user message
     : SUMMARY_PROMPT;
 
-  let userPrompt = `${basePromptText}\n\n---\nTRANSCRIPT:\n${content}`;
+  let userPrompt = basePromptText
+    ? `${basePromptText}\n\n---\nTRANSCRIPT:\n${content}`
+    : `TRANSCRIPT:\n${content}`;
 
   if (userContext?.trim()) {
     userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
   }
 
-  return callChatCompletion({ system: SUMMARY_INSTRUCTIONS, user: userPrompt });
+  return callChatCompletion({ system: systemInstruction, user: userPrompt });
 }
 
 export async function generateHomework(
@@ -73,15 +80,22 @@ export async function generateHomework(
     throw new Error("No transcript provided");
   }
 
-  const basePromptText = promptOverride && promptOverride.trim().length > 0
+  // When custom prompt provided, it becomes the system instruction
+  const systemInstruction = promptOverride && promptOverride.trim().length > 0
     ? promptOverride
+    : HOMEWORK_INSTRUCTIONS;
+
+  const basePromptText = promptOverride && promptOverride.trim().length > 0
+    ? "" // Don't duplicate in user message
     : HOMEWORK_PROMPT;
 
-  let userPrompt = `${basePromptText}\n\n---\nTRANSCRIPT:\n${content}`;
+  let userPrompt = basePromptText
+    ? `${basePromptText}\n\n---\nTRANSCRIPT:\n${content}`
+    : `TRANSCRIPT:\n${content}`;
 
   if (userContext?.trim()) {
     userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
   }
 
-  return callChatCompletion({ system: HOMEWORK_INSTRUCTIONS, user: userPrompt });
+  return callChatCompletion({ system: systemInstruction, user: userPrompt });
 }

@@ -45,17 +45,6 @@ export default async function StudentPage({ params }: StudentPageProps) {
       <div className="space-y-8">
         <StudentRecordingInterface student={student} />
 
-        <Card
-          title={student.name}
-          description={`Created ${new Date(student.createdAt).toLocaleDateString()} - ${totalSessions} sessions recorded`}
-          footer={
-            <div className="flex flex-wrap gap-3 text-xs">
-              <button className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 hover:border-slate-400 dark:hover:border-slate-500">Rename</button>
-              <button className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 hover:border-slate-400 dark:hover:border-slate-500">Delete</button>
-            </div>
-          }
-        />
-
         <Card title={`${student.name}'s Sessions`} description="Auditable list of sessions tied to this student.">
           {errorMessage ? (
             <EmptyState
