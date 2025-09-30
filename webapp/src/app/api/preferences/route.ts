@@ -7,12 +7,14 @@ export async function GET() {
 
     if (!preferences) {
       return NextResponse.json({
-        currentStudentId: null,
+        defaultSummaryPromptId: null,
+        defaultHomeworkPromptId: null,
       });
     }
 
     return NextResponse.json({
-      currentStudentId: preferences.currentStudentId || null,
+      defaultSummaryPromptId: preferences.defaultSummaryPromptId || null,
+      defaultHomeworkPromptId: preferences.defaultHomeworkPromptId || null,
     });
   } catch (error) {
     console.error("Failed to load preferences", error);

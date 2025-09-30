@@ -107,6 +107,51 @@ export async function generateSessionArtifactsAction(
     } else {
       console.warn("Selected prompt not available for user", { selectedPromptId, userId: user.id });
     }
+  } else {
+    // No manual selection - load user's default prompts
+    const { data: prefsRaw, error: prefsError } = await supabase
+      .from("teacher_preferences")
+      .select("default_summary_prompt_id, default_homework_prompt_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const prefs = (prefsRaw ?? null) as {
+      default_summary_prompt_id?: string | null;
+      default_homework_prompt_id?: string | null;
+    } | null;
+
+    if (!prefsError && prefs) {
+      const defaultSummaryId = prefs.default_summary_prompt_id ?? null;
+      const defaultHomeworkId = prefs.default_homework_prompt_id ?? null;
+
+      // Load default summary prompt if set
+      if (runSummary && defaultSummaryId) {
+        const { data: summaryPromptRow } = await supabase
+          .from("prompts")
+          .select("prompt_text")
+          .eq("id", defaultSummaryId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (summaryPromptRow?.prompt_text) {
+          summaryPromptOverride = summaryPromptRow.prompt_text;
+        }
+      }
+
+      // Load default homework prompt if set
+      if (runHomework && defaultHomeworkId) {
+        const { data: homeworkPromptRow } = await supabase
+          .from("prompts")
+          .select("prompt_text")
+          .eq("id", defaultHomeworkId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (homeworkPromptRow?.prompt_text) {
+          homeworkPromptOverride = homeworkPromptRow.prompt_text;
+        }
+      }
+    }
   }
   // Mark generation as started
   await supabase

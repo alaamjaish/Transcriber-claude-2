@@ -19,7 +19,9 @@
       "Read(//c/Users/Alaa M. Jaish/OneDrive/الصور/Screenshots/**)",
       "Bash(ls:*)",
       "Bash(claude --version)",
-      "Bash(dir tail:*)"
+      "Bash(dir tail:*)",
+      "Bash(dir:*)",
+      "Bash(npx supabase db push:*)"
     ],
     "deny": [],
     "ask": []

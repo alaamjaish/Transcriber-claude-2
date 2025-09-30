@@ -116,16 +116,22 @@ export type Database = {
       teacher_preferences: {
         Row: {
           current_student_id: string | null
+          default_summary_prompt_id: string | null
+          default_homework_prompt_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           current_student_id?: string | null
+          default_summary_prompt_id?: string | null
+          default_homework_prompt_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           current_student_id?: string | null
+          default_summary_prompt_id?: string | null
+          default_homework_prompt_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -135,6 +141,20 @@ export type Database = {
             columns: ["current_student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_preferences_default_summary_prompt_id_fkey"
+            columns: ["default_summary_prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_preferences_default_homework_prompt_id_fkey"
+            columns: ["default_homework_prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
             referencedColumns: ["id"]
           },
         ]
