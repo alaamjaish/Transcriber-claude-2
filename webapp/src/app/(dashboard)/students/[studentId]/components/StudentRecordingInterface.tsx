@@ -215,7 +215,7 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
       ) : null}
 
       <RecordingConsole
-        title={`${student.name} Recording Console`}
+        title={`${student.name}'s Recording Console`}
         subtitle="Monitor live transcription and manage session capture."
         onStart={handleStart}
         onStop={handleStop}
