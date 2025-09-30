@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -295,7 +295,7 @@ export function SessionList() {
         return (
           <article
             key={session.id}
-            className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 p-4 cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md transition-all"
+            className={`rounded-xl border transition-all p-4 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-lg ${isExpanded ? "border-slate-300 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-900/40 shadow-md" : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 shadow-sm"}`}
             onClick={() => toggleSessionExpanded(session.id)}
           >
             <div className="flex items-center justify-between gap-3">
@@ -330,9 +330,9 @@ export function SessionList() {
               </div>
 
               <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-500">
-                <span className="inline-flex items-center">                                                                                                          
-                <span className="inline-block w-10 text-left">Duration:</span>                                                                                     
-                <span className="inline-block w-12 tabular-nums text-right">{durationLabel}</span>                                                                 
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block w-20 text-left">Duration:</span>
+                  <span className="inline-block w-16 tabular-nums text-right">{durationLabel}</span>
                 </span>
                 <svg
                   className={`w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -346,7 +346,7 @@ export function SessionList() {
             </div>
 
             {isExpanded && (
-              <div className="mt-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="mt-4 space-y-4 border-t border-slate-200 dark:border-slate-800 pt-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <button
                     className="rounded-md border border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-600/10 px-3 py-1 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-600/20 transition-colors"
@@ -382,7 +382,7 @@ export function SessionList() {
                   </pre>
                 )}
 
-                <section className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800/70 bg-slate-50 dark:bg-slate-900/40 p-4 shadow-sm">
+                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Summary</span>
                     <span className="text-xs text-slate-600 dark:text-slate-400">{summaryStatus}</span>
@@ -424,7 +424,7 @@ export function SessionList() {
                   )}
                 </section>
 
-                <section className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800/70 bg-slate-50 dark:bg-slate-900/40 p-4 shadow-sm">
+                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Homework</span>
                     <span className="text-xs text-slate-600 dark:text-slate-400">{homeworkStatus}</span>
@@ -481,7 +481,4 @@ export function SessionList() {
     </div>
   );
 }
-
-
-
 

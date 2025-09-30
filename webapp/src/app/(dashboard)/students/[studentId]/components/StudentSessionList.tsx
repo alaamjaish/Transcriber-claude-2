@@ -39,9 +39,10 @@ function formatDuration(durationMs: number): string {
 
 interface StudentSessionListProps {
   studentId: string;
+  studentName: string;
 }
 
-export function StudentSessionList({ studentId }: StudentSessionListProps) {
+export function StudentSessionList({ studentId, studentName }: StudentSessionListProps) {
   const router = useRouter();
   const { sessions, updateSession, removeSession } = useSessionList();
   const [openPanels, setOpenPanels] = useState<Record<string, PanelState>>({});
@@ -51,6 +52,7 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
     sessionId: string;
     type: "summary" | "homework";
   }>({ isOpen: false, sessionId: "", type: "summary" });
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
   const togglePanel = useCallback((sessionId: string, panel: PanelKey) => {
     setOpenPanels((prev) => {
@@ -65,6 +67,23 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
   const isPanelOpen = useCallback(
     (sessionId: string, panel: PanelKey) => openPanels[sessionId]?.[panel] ?? false,
     [openPanels],
+  );
+
+  const toggleSessionExpanded = useCallback((sessionId: string) => {
+    setExpandedSessions((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) {
+        next.delete(sessionId);
+      } else {
+        next.add(sessionId);
+      }
+      return next;
+    });
+  }, []);
+
+  const isSessionExpanded = useCallback(
+    (sessionId: string) => expandedSessions.has(sessionId),
+    [expandedSessions],
   );
 
   const setPending = useCallback((sessionId: string, key: PendingKey, value: boolean) => {
@@ -258,7 +277,9 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
         const summaryOpen = isPanelOpen(session.id, "summary");
         const homeworkOpen = isPanelOpen(session.id, "homework");
 
-        const timestampLabel = new Date(session.recordedAt).toLocaleString();
+        const recordedDate = new Date(session.recordedAt);
+        const timestampLabel = recordedDate.toLocaleString();
+        const dateOnly = recordedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // e.g., "Sep 30"
         const durationLabel = formatDuration(session.durationMs);
         const fileBase = session.id || "session";
 
@@ -278,152 +299,186 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
           ? "Ready"
           : "Not generated yet";
 
+        const isExpanded = isSessionExpanded(session.id);
+
         return (
-                    <article key={session.id} className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 p-4">
-            <header className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{session.studentName ?? "Student Session"}</span>
+          <article
+            key={session.id}
+            className={`rounded-xl border transition-all p-4 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-lg ${isExpanded ? "border-slate-300 dark:border-slate-700 bg-slate-50/90 dark:bg-slate-900/40 shadow-md" : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 shadow-sm"}`}
+            onClick={() => toggleSessionExpanded(session.id)}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate w-40"
+                    title={session.studentName ?? studentName}
+                  >
+                    {session.studentName ?? studentName}
+                  </span>
+                  <span className="text-base font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap flex-shrink-0">
+                    {dateOnly}
+                  </span>
+                </div>
                 {headerPending ? (
-                  <span className="rounded-full border border-slate-400 dark:border-slate-600 bg-slate-200 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:border-slate-500 dark:hover:border-slate-500 px-3 py-1 transition-colors cursor-default">
+                  <span className="rounded-full border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 px-3 py-1 text-xs whitespace-nowrap flex-shrink-0">
                     <GeneratingDots />
                   </span>
                 ) : session.generationStatus === "complete" || (summaryReady && homeworkReady) ? (
-                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium text-xs whitespace-nowrap flex-shrink-0">
                     Complete
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </span>
                 ) : (
-                  <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 px-3 py-1 transition-colors cursor-default">
+                  <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-700 dark:text-slate-200 px-3 py-1 text-xs whitespace-nowrap flex-shrink-0">
                     {statusLabel(session.generationStatus)}
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <button
-                  className="rounded-md border border-blue-600 bg-blue-600/10 px-3 py-1 text-blue-600 dark:text-blue-300 hover:bg-blue-600/20"
-                  onClick={() => togglePanel(session.id, "transcript")}
-                >
-                  {transcriptOpen ? "Hide transcript" : "View transcript"}
-                </button>
-                <button
-                  className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
-                  onClick={() => copyToClipboard(transcript, "Transcript copied to clipboard.")}
-                  disabled={!hasTranscript}
-                >
-                  Copy
-                </button>
-                <button
-                  className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
-                  onClick={() => downloadText(transcript, `${fileBase}.txt`)}
-                  disabled={!hasTranscript}
-                >
-                  Export .txt
-                </button>
-                <button
-                  className="rounded-md border border-red-600 bg-red-600/10 px-3 py-1 text-red-600 dark:text-red-400 hover:bg-red-600/20"
-                  onClick={() => deleteSession(session.id)}
-                >
-                  Delete
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500 dark:text-slate-500">
-                <span>{timestampLabel}</span>
-                <span className="hidden sm:inline">|</span>
-                <span>Duration: {durationLabel}</span>
-              </div>
-            </header>
 
-            {transcriptOpen ? (
-              <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-800 dark:text-slate-200">
-                {hasTranscript ? transcript : "No transcript available for this session."}
-              </pre>
-            ) : null}
+              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-500">
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block w-20 text-left">Duration:</span>
+                  <span className="inline-block w-16 tabular-nums text-right">{durationLabel}</span>
+                </span>
+                <svg
+                  className={`w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
 
-            <section className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800/70 bg-slate-50 dark:bg-slate-900/40 p-4 shadow-inner shadow-black/5 dark:shadow-black/10">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Summary</span>
-                <span className="text-xs text-slate-600 dark:text-slate-400">{summaryStatus}</span>
-                <div className="flex flex-wrap gap-2 md:ml-auto">
+            {isExpanded && (
+              <div className="mt-4 space-y-4 border-t border-slate-200 dark:border-slate-800 pt-4" onClick={(e) => e.stopPropagation()}>
+                <div className="text-xs text-slate-500 dark:text-slate-500">
+                  Recorded {timestampLabel}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
                   <button
-                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400"
-                    onClick={() => togglePanel(session.id, "summary")}
-                    disabled={!summaryReady}
+                    className="rounded-md border border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-600/10 px-3 py-1 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-600/20 transition-colors"
+                    onClick={() => togglePanel(session.id, "transcript")}
                   >
-                    {summaryOpen ? "Hide" : "View"}
+                    {transcriptOpen ? "Hide transcript" : "View transcript"}
                   </button>
                   <button
-                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
-                    onClick={() => copyToClipboard(summary, "Summary copied to clipboard.")}
-                    disabled={!summaryReady}
+                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => copyToClipboard(transcript, "Transcript copied to clipboard.")}
+                    disabled={!hasTranscript}
                   >
-                    Copy .md
+                    Copy
                   </button>
                   <button
-                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
-                    onClick={() => downloadText(summary, `${fileBase}-summary.md`)}
-                    disabled={!summaryReady}
+                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => downloadText(transcript, `${fileBase}.txt`)}
+                    disabled={!hasTranscript}
                   >
-                    Export .md
+                    Export .txt
                   </button>
                   <button
-                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400 disabled:hover:bg-slate-200 dark:disabled:hover:bg-slate-800"
-                    onClick={() => openContextModal(session.id, "summary")}
-                    disabled={!hasTranscript || summaryPending}
+                    className="rounded-md border border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-600/10 px-3 py-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-600/20 transition-colors"
+                    onClick={() => deleteSession(session.id)}
                   >
-                    {summaryPending ? "Generating..." : summaryReady ? "Regenerate" : "Generate"}
+                    Delete
                   </button>
                 </div>
-              </div>
-              {summaryOpen ? (
-                <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-800 dark:text-slate-200">
-                  {summaryReady ? summary : "Summary not available yet."}
-                </pre>
-              ) : null}
-            </section>
 
-            <section className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800/70 bg-slate-50 dark:bg-slate-900/40 p-4 shadow-inner shadow-black/5 dark:shadow-black/10">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Homework</span>
-                <span className="text-xs text-slate-600 dark:text-slate-400">{homeworkStatus}</span>
-                <div className="flex flex-wrap gap-2 md:ml-auto">
-                  <button
-                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400"
-                    onClick={() => togglePanel(session.id, "homework")}
-                    disabled={!homeworkReady}
-                  >
-                    {homeworkOpen ? "Hide" : "View"}
-                  </button>
-                  <button
-                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
-                    onClick={() => copyToClipboard(homework, "Homework copied to clipboard.")}
-                    disabled={!homeworkReady}
-                  >
-                    Copy .md
-                  </button>
-                  <button
-                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
-                    onClick={() => downloadText(homework, `${fileBase}-homework.md`)}
-                    disabled={!homeworkReady}
-                  >
-                    Export .md
-                  </button>
-                  <button
-                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400 disabled:hover:bg-slate-200 dark:disabled:hover:bg-slate-800"
-                    onClick={() => openContextModal(session.id, "homework")}
-                    disabled={!hasTranscript || homeworkPending}
-                  >
-                    {homeworkPending ? "Generating..." : homeworkReady ? "Regenerate" : "Generate"}
-                  </button>
-                </div>
+                {transcriptOpen && (
+                  <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
+                    {hasTranscript ? transcript : "No transcript available for this session."}
+                  </pre>
+                )}
+
+                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Summary</span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400">{summaryStatus}</span>
+                    <div className="flex flex-wrap gap-2 md:ml-auto">
+                      <button
+                        className="rounded-md border border-sky-500 bg-sky-50 dark:bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => togglePanel(session.id, "summary")}
+                        disabled={!summaryReady}
+                      >
+                        {summaryOpen ? "Hide" : "View"}
+                      </button>
+                      <button
+                        className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => copyToClipboard(summary, "Summary copied to clipboard.")}
+                        disabled={!summaryReady}
+                      >
+                        Copy .md
+                      </button>
+                      <button
+                        className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => downloadText(summary, `${fileBase}-summary.md`)}
+                        disabled={!summaryReady}
+                      >
+                        Export .md
+                      </button>
+                      <button
+                        className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        onClick={() => openContextModal(session.id, "summary")}
+                        disabled={!hasTranscript || summaryPending}
+                      >
+                        {summaryPending ? "Generating..." : summaryReady ? "Regenerate" : "Generate"}
+                      </button>
+                    </div>
+                  </div>
+                  {summaryOpen && (
+                    <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
+                      {summaryReady ? summary : "Summary not available yet."}
+                    </pre>
+                  )}
+                </section>
+
+                <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Homework</span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400">{homeworkStatus}</span>
+                    <div className="flex flex-wrap gap-2 md:ml-auto">
+                      <button
+                        className="rounded-md border border-sky-500 bg-sky-50 dark:bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => togglePanel(session.id, "homework")}
+                        disabled={!homeworkReady}
+                      >
+                        {homeworkOpen ? "Hide" : "View"}
+                      </button>
+                      <button
+                        className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => copyToClipboard(homework, "Homework copied to clipboard.")}
+                        disabled={!homeworkReady}
+                      >
+                        Copy .md
+                      </button>
+                      <button
+                        className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => downloadText(homework, `${fileBase}-homework.md`)}
+                        disabled={!homeworkReady}
+                      >
+                        Export .md
+                      </button>
+                      <button
+                        className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        onClick={() => openContextModal(session.id, "homework")}
+                        disabled={!hasTranscript || homeworkPending}
+                      >
+                        {homeworkPending ? "Generating..." : homeworkReady ? "Regenerate" : "Generate"}
+                      </button>
+                    </div>
+                  </div>
+                  {homeworkOpen && (
+                    <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
+                      {homeworkReady ? homework : "Homework not available yet."}
+                    </pre>
+                  )}
+                </section>
               </div>
-              {homeworkOpen ? (
-                <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-800 dark:text-slate-200">
-                  {homeworkReady ? homework : "Homework not available yet."}
-                </pre>
-              ) : null}
-            </section>
+            )}
           </article>
         );
       })}

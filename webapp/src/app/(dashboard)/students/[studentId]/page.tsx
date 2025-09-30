@@ -71,7 +71,7 @@ export default async function StudentPage({ params }: StudentPageProps) {
               aside={<span>If this persists, confirm your Supabase env vars and policies.</span>}
             />
           ) : (
-            <StudentSessionList studentId={studentId} />
+            <StudentSessionList studentId={studentId} studentName={student.name} />
           )}
         </Card>
       </div>
