@@ -9,18 +9,6 @@ import { useSessionList } from "./SessionListProvider";
 import { statusLabel } from "@/lib/placeholder-data";
 import { ContextModal } from "./ContextModal";
 
-function GeneratingDots() {
-  return (
-    <span className="inline-flex items-center gap-1">
-      Generating
-      <span className="flex space-x-1">
-        <span className="w-1 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '0ms'}}></span>
-        <span className="w-1 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '200ms'}}></span>
-        <span className="w-1 h-1 bg-current rounded-full animate-pulse" style={{animationDelay: '400ms'}}></span>
-      </span>
-    </span>
-  );
-}
 
 type PanelKey = "transcript" | "summary" | "homework";
 
@@ -312,14 +300,17 @@ export function SessionList() {
                   </span>
                 </div>
                 {headerPending ? (
-                  <span className="rounded-full border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 px-3 py-1 text-xs whitespace-nowrap flex-shrink-0">
-                    <GeneratingDots />
+                  <span className="rounded-full border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-3 py-1 text-xs whitespace-nowrap flex-shrink-0 flex items-center gap-1">
+                    <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Generating...
                   </span>
                 ) : session.generationStatus === "complete" || (summaryReady && homeworkReady) ? (
                   <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium text-xs whitespace-nowrap flex-shrink-0">
                     Complete
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
                   </span>
                 ) : (

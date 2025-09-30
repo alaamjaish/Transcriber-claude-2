@@ -1,4 +1,4 @@
-export const OPENAI_MODEL = "gpt-5-mini-2025-08-07";
+export const OPENAI_MODEL = "gpt-5-2025-08-07";
 
 export const SUMMARY_INSTRUCTIONS = `You are an expert AI assistant specialized in analyzing raw text transcripts from a voice recording application. Your primary goal is to intelligently discern the context of the conversation, categorize it into one of three types (Levantine Arabic Lesson, Professional Meeting, or General Conversation), and generate a structured, useful output tailored to that specific context. You must be able to handle potential inaccuracies from the speech-to-text engine.`;
 

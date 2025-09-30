@@ -43,7 +43,7 @@ export function DashboardClient({ students }: DashboardClientProps) {
   return (
     <>
       {hasStudents ? (
-        <ul className="grid gap-4 md:grid-cols-3">
+        <ul className="grid gap-4 md:grid-cols-2">
           {students.map((student) => (
             <StudentCard
               key={student.id}

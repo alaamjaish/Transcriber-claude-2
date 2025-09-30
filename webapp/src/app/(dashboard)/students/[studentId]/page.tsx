@@ -43,12 +43,7 @@ export default async function StudentPage({ params }: StudentPageProps) {
   return (
     <SessionListProvider initialSessions={sessions}>
       <div className="space-y-8">
-        <Card
-          title={`${student.name}'s Workspace`}
-          description={`Record a new session for ${student.name}`}
-        >
-          <StudentRecordingInterface student={student} />
-        </Card>
+        <StudentRecordingInterface student={student} />
 
         <Card
           title={student.name}
