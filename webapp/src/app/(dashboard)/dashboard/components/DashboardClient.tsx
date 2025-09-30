@@ -55,9 +55,9 @@ export function DashboardClient({ students }: DashboardClientProps) {
           ))}
         </ul>
       ) : (
-        <div className="rounded-lg border border-dashed border-slate-800 bg-slate-900/30 p-10 text-center text-slate-300">
-          <h3 className="text-lg font-semibold text-slate-100">No students yet</h3>
-          <p className="mt-2 text-sm text-slate-400">
+        <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 p-10 text-center text-slate-700 dark:text-slate-300">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">No students yet</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
             Add your first student to start organizing sessions and tracking progress.
           </p>
           <div className="mt-6 flex justify-center">

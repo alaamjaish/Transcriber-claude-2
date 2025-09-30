@@ -72,28 +72,28 @@ export function StudentCard({ student, onClick, onEdit, onDelete }: StudentCardP
 
   return (
     <li
-      className={`relative rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300 cursor-pointer transition-all duration-200 ${
+      className={`relative rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 p-4 text-sm text-slate-700 dark:text-slate-300 cursor-pointer transition-all duration-200 ${
         isHovered
-          ? "shadow-lg shadow-black/40 border-slate-700 transform translate-y-[-2px]"
-          : "hover:border-slate-700"
+          ? "shadow-lg shadow-black/10 dark:shadow-black/40 border-slate-300 dark:border-slate-700 transform translate-y-[-2px]"
+          : "hover:border-slate-300 dark:hover:border-slate-700"
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleCardClick}
     >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-slate-100 truncate flex-1">
+        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate flex-1">
           {student.name}
         </h3>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="rounded-full border border-slate-800 px-3 py-1 text-xs text-slate-400">
+          <span className="rounded-full border border-slate-200 dark:border-slate-800 px-3 py-1 text-xs text-slate-600 dark:text-slate-400">
             {student.totalSessions} sessions
           </span>
           {/* Three dots menu button */}
           <div className="relative" data-menu ref={menuRef}>
             <button
               onClick={handleMenuClick}
-              className={`p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-all duration-200 ${
+              className={`p-1 rounded-md text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all duration-200 ${
                 isHovered ? "opacity-100" : "opacity-0"
               }`}
               data-menu
@@ -114,19 +114,19 @@ export function StudentCard({ student, onClick, onEdit, onDelete }: StudentCardP
             {/* Dropdown menu */}
             {showMenu && (
               <div
-                className="absolute top-full right-0 mt-1 w-32 rounded-md border border-slate-800 bg-slate-950/95 shadow-xl shadow-black/40 z-10"
+                className="absolute top-full right-0 mt-1 w-32 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/95 shadow-xl shadow-black/10 dark:shadow-black/40 z-10"
                 data-menu
               >
                 <button
                   onClick={handleEdit}
-                  className="w-full px-3 py-2 text-left text-xs text-slate-100 hover:bg-slate-800/60 rounded-t-md transition-colors"
+                  className="w-full px-3 py-2 text-left text-xs text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-t-md transition-colors"
                   data-menu
                 >
                   Edit
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="w-full px-3 py-2 text-left text-xs text-rose-300 hover:bg-slate-800/60 rounded-b-md transition-colors"
+                  className="w-full px-3 py-2 text-left text-xs text-rose-600 dark:text-rose-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-b-md transition-colors"
                   data-menu
                 >
                   Delete
@@ -137,11 +137,11 @@ export function StudentCard({ student, onClick, onEdit, onDelete }: StudentCardP
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-slate-500 dark:text-slate-500">
         Last session: {formatLastSession(student.lastSessionDate)}
       </p>
 
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">
         Added {new Date(student.createdAt).toLocaleDateString()}
       </p>
     </li>

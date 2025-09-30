@@ -279,56 +279,56 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
           : "Not generated yet";
 
         return (
-                    <article key={session.id} className="space-y-4 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+                    <article key={session.id} className="space-y-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 p-4">
             <header className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="text-sm font-semibold text-slate-100">{session.studentName ?? "Student Session"}</span>
+              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{session.studentName ?? "Student Session"}</span>
                 {headerPending ? (
-                  <span className="rounded-full border border-slate-600 bg-slate-800/50 text-slate-300 hover:border-slate-500 px-3 py-1 transition-colors cursor-default">
+                  <span className="rounded-full border border-slate-400 dark:border-slate-600 bg-slate-200 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:border-slate-500 dark:hover:border-slate-500 px-3 py-1 transition-colors cursor-default">
                     <GeneratingDots />
                   </span>
                 ) : session.generationStatus === "complete" || (summaryReady && homeworkReady) ? (
-                  <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
                     Complete
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </span>
                 ) : (
-                  <span className="rounded-full border border-slate-800 bg-slate-900/50 text-slate-200 hover:border-slate-600 px-3 py-1 transition-colors cursor-default">
+                  <span className="rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 px-3 py-1 transition-colors cursor-default">
                     {statusLabel(session.generationStatus)}
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-600 dark:text-slate-400">
                 <button
-                  className="rounded-md border border-blue-600 bg-blue-600/10 px-3 py-1 text-blue-300 hover:bg-blue-600/20"
+                  className="rounded-md border border-blue-600 bg-blue-600/10 px-3 py-1 text-blue-600 dark:text-blue-300 hover:bg-blue-600/20"
                   onClick={() => togglePanel(session.id, "transcript")}
                 >
                   {transcriptOpen ? "Hide transcript" : "View transcript"}
                 </button>
                 <button
-                  className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
+                  className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                   onClick={() => copyToClipboard(transcript, "Transcript copied to clipboard.")}
                   disabled={!hasTranscript}
                 >
                   Copy
                 </button>
                 <button
-                  className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
+                  className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                   onClick={() => downloadText(transcript, `${fileBase}.txt`)}
                   disabled={!hasTranscript}
                 >
                   Export .txt
                 </button>
                 <button
-                  className="rounded-md border border-red-600 bg-red-600/10 px-3 py-1 text-red-400 hover:bg-red-600/20"
+                  className="rounded-md border border-red-600 bg-red-600/10 px-3 py-1 text-red-600 dark:text-red-400 hover:bg-red-600/20"
                   onClick={() => deleteSession(session.id)}
                 >
                   Delete
                 </button>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500 dark:text-slate-500">
                 <span>{timestampLabel}</span>
                 <span className="hidden sm:inline">|</span>
                 <span>Duration: {durationLabel}</span>
@@ -336,39 +336,39 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
             </header>
 
             {transcriptOpen ? (
-              <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-200">
+              <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-800 dark:text-slate-200">
                 {hasTranscript ? transcript : "No transcript available for this session."}
               </pre>
             ) : null}
 
-            <section className="space-y-3 rounded-xl border border-slate-800/70 bg-slate-900/40 p-4 shadow-inner shadow-black/10">
+            <section className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800/70 bg-slate-50 dark:bg-slate-900/40 p-4 shadow-inner shadow-black/5 dark:shadow-black/10">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Summary</span>
-                <span className="text-xs text-slate-400">{summaryStatus}</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Summary</span>
+                <span className="text-xs text-slate-600 dark:text-slate-400">{summaryStatus}</span>
                 <div className="flex flex-wrap gap-2 md:ml-auto">
                   <button
-                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-200 hover:bg-sky-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400"
+                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400"
                     onClick={() => togglePanel(session.id, "summary")}
                     disabled={!summaryReady}
                   >
                     {summaryOpen ? "Hide" : "View"}
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
+                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => copyToClipboard(summary, "Summary copied to clipboard.")}
                     disabled={!summaryReady}
                   >
                     Copy .md
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
+                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => downloadText(summary, `${fileBase}-summary.md`)}
                     disabled={!summaryReady}
                   >
                     Export .md
                   </button>
                   <button
-                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
+                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400 disabled:hover:bg-slate-200 dark:disabled:hover:bg-slate-800"
                     onClick={() => openContextModal(session.id, "summary")}
                     disabled={!hasTranscript || summaryPending}
                   >
@@ -377,40 +377,40 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
                 </div>
               </div>
               {summaryOpen ? (
-                <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-200">
+                <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-800 dark:text-slate-200">
                   {summaryReady ? summary : "Summary not available yet."}
                 </pre>
               ) : null}
             </section>
 
-            <section className="space-y-3 rounded-xl border border-slate-800/70 bg-slate-900/40 p-4 shadow-inner shadow-black/10">
+            <section className="space-y-3 rounded-xl border border-slate-200 dark:border-slate-800/70 bg-slate-50 dark:bg-slate-900/40 p-4 shadow-inner shadow-black/5 dark:shadow-black/10">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Homework</span>
-                <span className="text-xs text-slate-400">{homeworkStatus}</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Homework</span>
+                <span className="text-xs text-slate-600 dark:text-slate-400">{homeworkStatus}</span>
                 <div className="flex flex-wrap gap-2 md:ml-auto">
                   <button
-                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-200 hover:bg-sky-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400"
+                    className="rounded-md border border-sky-500 bg-sky-500/10 px-3 py-1 text-sky-600 dark:text-sky-200 hover:bg-sky-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400"
                     onClick={() => togglePanel(session.id, "homework")}
                     disabled={!homeworkReady}
                   >
                     {homeworkOpen ? "Hide" : "View"}
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover:border-slate-700 disabled:hover:bg-transparent"
+                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => copyToClipboard(homework, "Homework copied to clipboard.")}
                     disabled={!homeworkReady}
                   >
                     Copy .md
                   </button>
                   <button
-                    className="rounded-md border border-slate-700 px-3 py-1 transition-colors hover:border-slate-500 hover:bg-slate-800/50 disabled:hover;border-slate-700 disabled:hover:bg-transparent"
+                    className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50 disabled:hover:border-slate-300 dark:disabled:hover:border-slate-700 disabled:hover:bg-transparent"
                     onClick={() => downloadText(homework, `${fileBase}-homework.md`)}
                     disabled={!homeworkReady}
                   >
                     Export .md
                   </button>
                   <button
-                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-400 disabled:hover:bg-slate-800"
+                    className="rounded-md border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-400 disabled:hover:bg-slate-200 dark:disabled:hover:bg-slate-800"
                     onClick={() => openContextModal(session.id, "homework")}
                     disabled={!hasTranscript || homeworkPending}
                   >
@@ -419,7 +419,7 @@ export function StudentSessionList({ studentId }: StudentSessionListProps) {
                 </div>
               </div>
               {homeworkOpen ? (
-                <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-200">
+                <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-800 dark:text-slate-200">
                   {homeworkReady ? homework : "Homework not available yet."}
                 </pre>
               ) : null}

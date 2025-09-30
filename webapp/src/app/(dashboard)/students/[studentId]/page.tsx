@@ -55,8 +55,8 @@ export default async function StudentPage({ params }: StudentPageProps) {
           description={`Created ${new Date(student.createdAt).toLocaleDateString()} - ${totalSessions} sessions recorded`}
           footer={
             <div className="flex flex-wrap gap-3 text-xs">
-              <button className="rounded-md border border-slate-700 px-3 py-1 hover:border-slate-500">Rename</button>
-              <button className="rounded-md border border-slate-700 px-3 py-1 hover:border-slate-500">Delete</button>
+              <button className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 hover:border-slate-400 dark:hover:border-slate-500">Rename</button>
+              <button className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 hover:border-slate-400 dark:hover:border-slate-500">Delete</button>
             </div>
           }
         />

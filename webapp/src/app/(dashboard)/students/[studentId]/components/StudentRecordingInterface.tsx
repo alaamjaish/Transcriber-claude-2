@@ -187,29 +187,29 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
 
   return (
     <div className="space-y-3">
-   
+
       {tokenError ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">
           Token error: {tokenError}
         </p>
       ) : null}
       {mixerError ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">
           Audio error: {mixerError}
         </p>
       ) : null}
       {soniox.state.error ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">
           Stream error: {soniox.state.error}
         </p>
       ) : null}
       {saveError ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">
           {saveError}
         </p>
       ) : null}
       {saveSuccess ? (
-        <p className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-200">
+        <p className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-600 dark:text-emerald-200">
           {saveSuccess}
         </p>
       ) : null}
@@ -217,7 +217,7 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
       <RecordingConsole onStart={handleStart} onStop={handleStop} onCancel={handleCancel} />
 
       {(tokenLoading || mixer.state.requesting || savingSession) && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-500">
           {savingSession ? "Saving session to Supabase..." : "Preparing recording pipeline..."}
         </p>
       )}

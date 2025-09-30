@@ -1,7 +1,21 @@
 ﻿@import "./base.css";
 
 :root {
+  color-scheme: light dark;
+
+  /* Light mode */
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --surface: #f8fafc;
+  --surface-muted: #e2e8f0;
+  --accent: #0ea5e9;
+  --danger: #dc2626;
+}
+
+:root.dark {
   color-scheme: dark;
+
+  /* Dark mode */
   --background: #030712;
   --foreground: #f8fafc;
   --surface: #0f172a;

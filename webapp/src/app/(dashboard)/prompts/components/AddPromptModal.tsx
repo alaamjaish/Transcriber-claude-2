@@ -65,26 +65,26 @@ export function AddPromptModal({ open, onDismiss, onPromptCreated }: AddPromptMo
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-slate-950/70 px-4 py-8"
       onClick={onDismiss}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-950/90 p-6 shadow-xl shadow-black/40"
+        className="w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/90 p-6 shadow-xl shadow-black/20 dark:shadow-black/40"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="mb-6 space-y-1">
-          <h2 className="text-xl font-semibold text-slate-100">Add New Prompt</h2>
-          <p className="text-sm text-slate-400">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Add New Prompt</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Create a custom prompt that you can use when regenerating AI summaries and homework.
           </p>
         </header>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="prompt-name" className="text-xs uppercase tracking-[0.3em] text-slate-500">
+            <label htmlFor="prompt-name" className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
               Prompt Name
             </label>
             <input
@@ -93,14 +93,14 @@ export function AddPromptModal({ open, onDismiss, onPromptCreated }: AddPromptMo
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="e.g. Detailed Summary Style"
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
               disabled={submitting}
               maxLength={100}
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="prompt-text" className="text-xs uppercase tracking-[0.3em] text-slate-500">
+            <label htmlFor="prompt-text" className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
               Prompt Text
             </label>
             <textarea
@@ -108,18 +108,18 @@ export function AddPromptModal({ open, onDismiss, onPromptCreated }: AddPromptMo
               value={promptText}
               onChange={(event) => setPromptText(event.target.value)}
               placeholder="Write your custom prompt here. For example: 'Create a detailed summary that focuses on key learning objectives and includes specific action items for the student...'"
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 resize-none"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40 resize-none"
               disabled={submitting}
               rows={8}
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-500">
               {promptText.length}/2000 characters
             </p>
           </div>
         </div>
 
         {error ? (
-          <p className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+          <p className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">
             {error}
           </p>
         ) : null}
@@ -127,7 +127,7 @@ export function AddPromptModal({ open, onDismiss, onPromptCreated }: AddPromptMo
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
-            className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 transition hover:border-slate-400 dark:hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={onDismiss}
             disabled={submitting}
           >

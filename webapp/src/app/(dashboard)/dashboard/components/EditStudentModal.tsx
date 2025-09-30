@@ -75,26 +75,26 @@ export function EditStudentModal({ open, student, onDismiss, onStudentUpdated }:
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-slate-950/70 px-4 py-8"
       onClick={onDismiss}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-950/90 p-6 shadow-xl shadow-black/40"
+        className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/90 p-6 shadow-xl shadow-black/20 dark:shadow-black/40"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="mb-6 space-y-1">
-          <h2 className="text-xl font-semibold text-slate-100">Edit Student</h2>
-          <p className="text-sm text-slate-400">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Edit Student</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Update the student&apos;s name. This will be reflected across all their sessions.
           </p>
         </header>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="edit-student-name" className="text-xs uppercase tracking-[0.3em] text-slate-500">
+            <label htmlFor="edit-student-name" className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
               Student Name
             </label>
             <input
@@ -104,7 +104,7 @@ export function EditStudentModal({ open, student, onDismiss, onStudentUpdated }:
               onChange={(event) => setName(event.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="e.g. Sarah Johnson"
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
               disabled={submitting}
               maxLength={100}
               autoFocus
@@ -113,15 +113,15 @@ export function EditStudentModal({ open, student, onDismiss, onStudentUpdated }:
         </div>
 
         {/* Student info preview */}
-        <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-          <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 p-3">
+          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
             <span>{student.totalSessions} sessions</span>
             <span>Added {new Date(student.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
 
         {error ? (
-          <p className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
+          <p className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">
             {error}
           </p>
         ) : null}
@@ -129,7 +129,7 @@ export function EditStudentModal({ open, student, onDismiss, onStudentUpdated }:
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
-            className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 transition hover:border-slate-400 dark:hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={onDismiss}
             disabled={submitting}
           >

@@ -27,7 +27,7 @@ export function RecordingControls({ phase, onStart, onStop, onCancel, disabled }
       </button>
       <button
         type="button"
-        className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-xl border border-slate-300 dark:border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-900 dark:text-slate-100 transition hover:border-slate-400 dark:hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={() => onStop()}
         disabled={!isLive}
       >
@@ -35,13 +35,13 @@ export function RecordingControls({ phase, onStart, onStop, onCancel, disabled }
       </button>
       <button
         type="button"
-        className="rounded-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-slate-400 transition hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 transition hover:text-slate-900 dark:hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={() => onCancel()}
         disabled={isIdle || isBusy}
       >
         Cancel
       </button>
-      <span className="text-xs uppercase tracking-[0.3em] text-slate-500">
+      <span className="text-xs uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
         Phase: {phase}
       </span>
     </div>

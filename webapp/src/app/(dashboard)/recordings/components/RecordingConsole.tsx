@@ -186,11 +186,11 @@ export function RecordingConsole({ onStart, onStop, onCancel }: RecordingConsole
 
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-sm shadow-black/20">
+      <div className="rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-6 shadow-sm shadow-black/5 dark:shadow-black/20">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-100">Recording console</h2>
-            <p className="text-sm text-slate-400">Monitor live transcription and manage session capture.</p>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Recording console</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Monitor live transcription and manage session capture.</p>
           </div>
           <StatusIndicator label={status.label} tone={status.tone} durationMs={state.durationMs} />
         </header>
