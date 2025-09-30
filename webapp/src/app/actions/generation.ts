@@ -109,19 +109,27 @@ export async function generateSessionArtifactsAction(
     }
   } else {
     // No manual selection - load user's default prompts
-    const { data: prefs, error: prefsError } = await supabase
+    const { data: prefsRaw, error: prefsError } = await supabase
       .from("teacher_preferences")
       .select("default_summary_prompt_id, default_homework_prompt_id")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    const prefs = (prefsRaw ?? null) as {
+      default_summary_prompt_id?: string | null;
+      default_homework_prompt_id?: string | null;
+    } | null;
+
     if (!prefsError && prefs) {
+      const defaultSummaryId = prefs.default_summary_prompt_id ?? null;
+      const defaultHomeworkId = prefs.default_homework_prompt_id ?? null;
+
       // Load default summary prompt if set
-      if (runSummary && prefs.default_summary_prompt_id) {
+      if (runSummary && defaultSummaryId) {
         const { data: summaryPromptRow } = await supabase
           .from("prompts")
           .select("prompt_text")
-          .eq("id", prefs.default_summary_prompt_id)
+          .eq("id", defaultSummaryId)
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -131,11 +139,11 @@ export async function generateSessionArtifactsAction(
       }
 
       // Load default homework prompt if set
-      if (runHomework && prefs.default_homework_prompt_id) {
+      if (runHomework && defaultHomeworkId) {
         const { data: homeworkPromptRow } = await supabase
           .from("prompts")
           .select("prompt_text")
-          .eq("id", prefs.default_homework_prompt_id)
+          .eq("id", defaultHomeworkId)
           .eq("user_id", user.id)
           .maybeSingle();
 
@@ -145,7 +153,6 @@ export async function generateSessionArtifactsAction(
       }
     }
   }
-
   // Mark generation as started
   await supabase
     .from("sessions")
@@ -223,3 +230,6 @@ export async function generateSessionArtifactsAction(
 
   return { summaryGenerated, homeworkGenerated, error: errorMessage };
 }
+
+
+
