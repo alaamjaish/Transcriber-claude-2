@@ -1,10 +1,10 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 export default function ResetPage() {
   return (
     <form className="space-y-6">
       <p className="text-sm text-slate-600 dark:text-slate-400">
-        Enter your email and we'll send a link to reset your password.
+        Enter your email and we&apos;ll send a link to reset your password.
       </p>
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Email</label>

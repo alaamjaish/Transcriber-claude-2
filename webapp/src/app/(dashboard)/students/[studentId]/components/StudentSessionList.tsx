@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 import { generateSessionArtifactsAction } from "@/app/actions/generation";
 import { deleteSessionAction } from "@/app/actions/sessions";
-import type { Session } from "@/lib/types";
 import { statusLabel } from "@/lib/placeholder-data";
 import { ContextModal } from "../../../recordings/components/ContextModal";
 import { useSessionList } from "@/app/(dashboard)/recordings/components/SessionListProvider";

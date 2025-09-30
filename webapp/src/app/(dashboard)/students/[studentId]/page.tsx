@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Card } from "@/components/ui/Card";
@@ -37,8 +36,6 @@ export default async function StudentPage({ params }: StudentPageProps) {
     console.error("Failed to load sessions for student", error);
     errorMessage = "We couldn't load this student's sessions. Verify Supabase settings and try again.";
   }
-
-  const totalSessions = student.totalSessions ?? sessions.length;
 
   return (
     <SessionListProvider initialSessions={sessions}>
