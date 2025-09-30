@@ -207,7 +207,7 @@ export async function loadUserPreferences(): Promise<TeacherPreference | null> {
 
   const { data, error } = await client
     .from("teacher_preferences")
-    .select("user_id, current_student_id, default_summary_prompt_id, default_homework_prompt_id, updated_at")
+    .select("user_id, current_student_id, updated_at")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -223,8 +223,6 @@ export async function loadUserPreferences(): Promise<TeacherPreference | null> {
   return {
     userId: data.user_id,
     currentStudentId: data.current_student_id ?? undefined,
-    defaultSummaryPromptId: data.default_summary_prompt_id ?? undefined,
-    defaultHomeworkPromptId: data.default_homework_prompt_id ?? undefined,
     updatedAt: data.updated_at,
   };
 }

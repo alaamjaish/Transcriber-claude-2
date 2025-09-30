@@ -17,21 +17,20 @@ export function ContextModal({ isOpen, onClose, onGenerate, type, isPending }: C
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string>("default");
   const [promptsLoading, setPromptsLoading] = useState(false);
-  const [defaultPromptId, setDefaultPromptId] = useState<string | null>(null);
 
   const handleGenerate = () => {
     const promptId = selectedPromptId === "default" ? undefined : selectedPromptId;
     onGenerate(context.trim(), promptId);
     setContext("");
-    // Reset to user's default after generation
-    setSelectedPromptId(defaultPromptId || "default");
+    // Reset to default after generation
+    setSelectedPromptId("default");
   };
 
   const handleClose = () => {
     onClose();
     setContext("");
-    // Reset to user's default on close
-    setSelectedPromptId(defaultPromptId || "default");
+    // Reset to default on close
+    setSelectedPromptId("default");
   };
 
   // Load prompts and user preferences when modal opens
@@ -47,21 +46,6 @@ export function ContextModal({ isOpen, onClose, onGenerate, type, isPending }: C
           })
           .finally(() => setPromptsLoading(false));
       }
-
-      // Load user preferences
-      fetch("/api/preferences")
-        .then(res => res.json())
-        .then(prefs => {
-          const defaultId = type === "summary"
-            ? prefs.defaultSummaryPromptId
-            : prefs.defaultHomeworkPromptId;
-
-          setDefaultPromptId(defaultId || null);
-          setSelectedPromptId(defaultId || "default");
-        })
-        .catch(error => {
-          console.error("Failed to load preferences:", error);
-        });
     }
   }, [isOpen, prompts.length, type]);
 

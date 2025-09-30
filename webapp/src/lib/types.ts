@@ -39,8 +39,6 @@ export interface TeacherProfile {
 export interface TeacherPreference {
   userId: string;
   currentStudentId?: string;
-  defaultSummaryPromptId?: string;
-  defaultHomeworkPromptId?: string;
   updatedAt: string;
 }
 
