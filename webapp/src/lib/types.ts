@@ -52,3 +52,28 @@ export interface Prompt {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface TutorSettings {
+  id: string;
+  userId: string;
+  teachingMethodology: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AIChatSession {
+  id: string;
+  studentId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AIChatMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  tokensUsed?: number;
+  createdAt: string;
+}

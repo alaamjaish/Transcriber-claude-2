@@ -50,10 +50,22 @@ export async function generateSummary(
     throw new Error("No transcript provided");
   }
 
+  // Get current date/time
+  const currentDate = new Date().toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
   // When custom prompt provided, it becomes the system instruction
-  const systemInstruction = promptOverride && promptOverride.trim().length > 0
+  const baseSystemInstruction = promptOverride && promptOverride.trim().length > 0
     ? promptOverride
     : SUMMARY_INSTRUCTIONS;
+
+  const systemInstruction = `Current Date/Time: ${currentDate}\n\n${baseSystemInstruction}`;
 
   const basePromptText = promptOverride && promptOverride.trim().length > 0
     ? "" // Don't duplicate in user message
@@ -80,10 +92,22 @@ export async function generateHomework(
     throw new Error("No transcript provided");
   }
 
+  // Get current date/time
+  const currentDate = new Date().toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
   // When custom prompt provided, it becomes the system instruction
-  const systemInstruction = promptOverride && promptOverride.trim().length > 0
+  const baseSystemInstruction = promptOverride && promptOverride.trim().length > 0
     ? promptOverride
     : HOMEWORK_INSTRUCTIONS;
+
+  const systemInstruction = `Current Date/Time: ${currentDate}\n\n${baseSystemInstruction}`;
 
   const basePromptText = promptOverride && promptOverride.trim().length > 0
     ? "" // Don't duplicate in user message

@@ -8,6 +8,7 @@ import type { Session, Student } from "@/lib/types";
 import { StudentSessionList } from "./components/StudentSessionList";
 import { StudentRecordingInterface } from "./components/StudentRecordingInterface";
 import { SessionListProvider } from "@/app/(dashboard)/recordings/components/SessionListProvider";
+import { StudentPageClient } from "./components/StudentPageClient";
 
 interface StudentPageProps {
   params: Promise<{ studentId: string }>;
@@ -39,27 +40,7 @@ export default async function StudentPage({ params }: StudentPageProps) {
 
   return (
     <SessionListProvider initialSessions={sessions}>
-      <div className="space-y-8">
-        <StudentRecordingInterface student={student} />
-
-        <Card title={`${student.name}'s Sessions`} description="Auditable list of sessions tied to this student.">
-          {errorMessage ? (
-            <EmptyState
-              title="Unable to load sessions"
-              description={errorMessage}
-              actionLabel="Reload"
-              actionHref={`/students/${studentId}`}
-              aside={<span>If this persists, confirm your Supabase env vars and policies.</span>}
-            />
-          ) : (
-            <StudentSessionList studentId={studentId} studentName={student.name} />
-          )}
-        </Card>
-      </div>
+      <StudentPageClient student={student} errorMessage={errorMessage} />
     </SessionListProvider>
   );
 }
-
-
-
-
