@@ -1,44 +1,6 @@
-import { HOMEWORK_INSTRUCTIONS, HOMEWORK_PROMPT, OPENAI_MODEL, SUMMARY_INSTRUCTIONS, SUMMARY_PROMPT } from "@/lib/ai/prompts";
-
-const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
-
-interface ChatRequest {
-  system: string;
-  user: string;
-  temperature?: number;
-}
-
-async function callChatCompletion({ system, user, temperature = 1 }: ChatRequest): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured on the server");
-  }
-
-  const response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      temperature,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    const message = data?.error?.message ?? "OpenAI API error";
-    throw new Error(message);
-  }
-
-  const text: string | undefined = data?.choices?.[0]?.message?.content;
-  return text?.trim() ?? "";
-}
+import { HOMEWORK_INSTRUCTIONS, HOMEWORK_PROMPT, SUMMARY_INSTRUCTIONS, SUMMARY_PROMPT } from "@/lib/ai/prompts";
+import { simpleChatCompletion } from "@/lib/ai/openrouter";
+import { AI_MODELS, MODEL_SETTINGS } from "@/lib/ai/config";
 
 export async function generateSummary(
   transcript: string,
@@ -79,7 +41,13 @@ export async function generateSummary(
     userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
   }
 
-  return callChatCompletion({ system: systemInstruction, user: userPrompt });
+  return simpleChatCompletion({
+    model: AI_MODELS.summary,
+    systemMessage: systemInstruction,
+    userMessage: userPrompt,
+    temperature: MODEL_SETTINGS.summary.temperature,
+    maxTokens: MODEL_SETTINGS.summary.maxTokens,
+  });
 }
 
 export async function generateHomework(
@@ -121,5 +89,11 @@ export async function generateHomework(
     userPrompt += `\n\n---\nADDITIONAL CONTEXT:\n${userContext.trim()}`;
   }
 
-  return callChatCompletion({ system: systemInstruction, user: userPrompt });
+  return simpleChatCompletion({
+    model: AI_MODELS.homework,
+    systemMessage: systemInstruction,
+    userMessage: userPrompt,
+    temperature: MODEL_SETTINGS.homework.temperature,
+    maxTokens: MODEL_SETTINGS.homework.maxTokens,
+  });
 }

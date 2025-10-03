@@ -133,7 +133,7 @@ async function fetchLast30Lessons(studentId: string): Promise<Session[]> {
 }
 
 /**
- * Build the complete system prompt for Gemini
+ * Build the complete system prompt for AI models
  */
 function buildSystemPrompt(
   teachingMethodology: string,

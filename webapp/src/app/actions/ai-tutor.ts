@@ -1,7 +1,8 @@
 ﻿'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { sendGeminiChatRequest } from '@/lib/ai/gemini';
+import { conversationalChatCompletion, simpleChatCompletion } from '@/lib/ai/openrouter';
+import { AI_MODELS, MODEL_SETTINGS } from '@/lib/ai/config';
 import { buildAITutorContext, updateTutorMethodology } from '@/lib/ai/ai-tutor-context';
 import type { AIChatSession, AIChatMessage, TutorSettings } from '@/lib/types';
 
@@ -214,8 +215,6 @@ export async function getChatMessages(sessionId: string): Promise<AIChatMessage[
  */
 export async function generateChatTitle(userMessage: string): Promise<string> {
   try {
-    const { sendSimpleGeminiRequest } = await import('@/lib/ai/gemini');
-
     const systemPrompt = `You are a title generator. Generate a short, concise title (3-6 words max) for a conversation based on the user's first message.
 Rules:
 - Keep it SHORT (3-6 words maximum)
@@ -224,11 +223,13 @@ Rules:
 - NO quotes or special characters
 - Focus on the main topic`;
 
-    const title = await sendSimpleGeminiRequest(
-      systemPrompt,
-      `Generate a short title for this conversation: "${userMessage}"`,
-      0.7
-    );
+    const title = await simpleChatCompletion({
+      model: AI_MODELS.titleGeneration,
+      systemMessage: systemPrompt,
+      userMessage: `Generate a short title for this conversation: "${userMessage}"`,
+      temperature: MODEL_SETTINGS.titleGeneration.temperature,
+      maxTokens: MODEL_SETTINGS.titleGeneration.maxTokens,
+    });
 
     // Clean up the title
     const cleanTitle = title.replace(/['"]/g, '').trim();
@@ -267,19 +268,20 @@ export async function sendChatMessage(
     const messages = await getChatMessages(sessionId);
     const isFirstMessage = messages.length === 0;
 
-    // 3. Convert to Gemini format
+    // 3. Convert to OpenRouter format (user/assistant roles)
     const conversationHistory = messages.map((msg) => ({
-      role: msg.role === 'user' ? ('user' as const) : ('model' as const),
-      parts: [{ text: msg.content }],
+      role: msg.role === 'user' ? ('user' as const) : ('assistant' as const),
+      content: msg.content,
     }));
 
-    // 4. Send to Gemini
-    const aiResponse = await sendGeminiChatRequest({
-      systemInstruction,
+    // 4. Send to OpenRouter (Claude/Gemini/GPT - configured in config.ts)
+    const aiResponse = await conversationalChatCompletion({
+      model: AI_MODELS.chat,
+      systemMessage: systemInstruction,
       conversationHistory,
       userMessage,
-      temperature: 0.7,
-      maxOutputTokens: 2000,
+      temperature: MODEL_SETTINGS.chat.temperature,
+      maxTokens: MODEL_SETTINGS.chat.maxTokens,
     });
 
     // 5. Save both messages to database
