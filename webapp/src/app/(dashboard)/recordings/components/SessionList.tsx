@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { generateSessionArtifactsAction } from "@/app/actions/generation";
 import { deleteSessionAction } from "@/app/actions/sessions";
@@ -132,16 +133,31 @@ export function SessionList() {
         generationStatus: "generating",
       }));
 
-      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }, context, selectedPromptId).catch((error) => {
-        console.error("Summary generation error", error);
-        alert("Failed to start summary generation. Please try again.");
-        setPending(sessionId, "summary", false);
-        updateSession(sessionId, (session) => ({
-          ...session,
-          aiGenerationStatus: session.aiGenerationStatus === "generating" ? "error" : session.aiGenerationStatus,
-          generationStatus: session.generationStatus === "generating" ? "error" : session.generationStatus,
-        }));
-      });
+      generateSessionArtifactsAction(sessionId, { summary: true, homework: false }, context, selectedPromptId)
+        .then((result) => {
+          if (result.error) {
+            toast.error("Summary Generation Failed", {
+              description: result.error,
+              duration: 10000,
+            });
+          } else if (result.summaryGenerated) {
+            toast.success("Summary generated successfully!");
+          }
+        })
+        .catch((error) => {
+          console.error("Summary generation error", error);
+          const errorMessage = error instanceof Error ? error.message : "Failed to start summary generation. Please try again.";
+          toast.error("Summary Generation Failed", {
+            description: errorMessage,
+            duration: 10000,
+          });
+          setPending(sessionId, "summary", false);
+          updateSession(sessionId, (session) => ({
+            ...session,
+            aiGenerationStatus: session.aiGenerationStatus === "generating" ? "error" : session.aiGenerationStatus,
+            generationStatus: session.generationStatus === "generating" ? "error" : session.generationStatus,
+          }));
+        });
 
       // Force immediate refresh to show "generating" status
       router.refresh();
@@ -159,16 +175,31 @@ export function SessionList() {
         generationStatus: "generating",
       }));
 
-      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }, context, selectedPromptId).catch((error) => {
-        console.error("Homework generation error", error);
-        alert("Failed to start homework generation. Please try again.");
-        setPending(sessionId, "homework", false);
-        updateSession(sessionId, (session) => ({
-          ...session,
-          aiGenerationStatus: session.aiGenerationStatus === "generating" ? "error" : session.aiGenerationStatus,
-          generationStatus: session.generationStatus === "generating" ? "error" : session.generationStatus,
-        }));
-      });
+      generateSessionArtifactsAction(sessionId, { summary: false, homework: true }, context, selectedPromptId)
+        .then((result) => {
+          if (result.error) {
+            toast.error("Homework Generation Failed", {
+              description: result.error,
+              duration: 10000,
+            });
+          } else if (result.homeworkGenerated) {
+            toast.success("Homework generated successfully!");
+          }
+        })
+        .catch((error) => {
+          console.error("Homework generation error", error);
+          const errorMessage = error instanceof Error ? error.message : "Failed to start homework generation. Please try again.";
+          toast.error("Homework Generation Failed", {
+            description: errorMessage,
+            duration: 10000,
+          });
+          setPending(sessionId, "homework", false);
+          updateSession(sessionId, (session) => ({
+            ...session,
+            aiGenerationStatus: session.aiGenerationStatus === "generating" ? "error" : session.aiGenerationStatus,
+            generationStatus: session.generationStatus === "generating" ? "error" : session.generationStatus,
+          }));
+        });
 
       // Force immediate refresh to show "generating" status
       router.refresh();

@@ -58,10 +58,14 @@ function normalizeOptions(options?: CookieOptions) {
 }
 
 function logCookieWarning(action: "set" | "delete", error?: unknown) {
-  if (process.env.NODE_ENV === "production") return;
-  const base =
-    action === "set"
-      ? "Supabase attempted to set auth cookies outside of a mutating context."
-      : "Supabase attempted to delete auth cookies outside of a mutating context.";
-  console.warn(`${base} Run this inside a Server Action or Route Handler to persist cookies.`, error);
+  // Disable warnings - this is expected behavior in Server Components
+  return;
+
+  // Original warning code (disabled):
+  // if (process.env.NODE_ENV === "production") return;
+  // const base =
+  //   action === "set"
+  //     ? "Supabase attempted to set auth cookies outside of a mutating context."
+  //     : "Supabase attempted to delete auth cookies outside of a mutating context.";
+  // console.warn(`${base} Run this inside a Server Action or Route Handler to persist cookies.`, error);
 }

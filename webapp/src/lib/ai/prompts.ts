@@ -45,7 +45,28 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
 
 ## Required Output Structure
 
-Use the following exact Markdown format and section headers:
+**CRITICAL: You MUST follow this EXACT format. Do NOT deviate. Do NOT add extra sections. Do NOT change heading levels.**
+
+**FORMATTING RULES - NON-NEGOTIABLE:**
+1. Use EXACTLY "## " (two hashes + space) for ALL main section headings
+2. Use EXACTLY "### " (three hashes + space) ONLY for subsections under "New Vocabulary"
+3. Do NOT use "---" horizontal rules between sections
+4. Do NOT add extra blank lines between sections (one blank line only)
+5. ALWAYS include ALL sections below, even if empty (write "None" or "N/A")
+
+**CRITICAL - EXACT SECTION NAMES (DO NOT CHANGE EVEN ONE LETTER):**
+- "## Lesson Details" (not "Lesson Info" or "Details")
+- "## High-Level Summary" (not "Summary" or "Overview")
+- "## New Vocabulary" (not "Vocabulary" or "New Vocab" or "Words")
+- "## Key Expressions and Phrases" (exact wording!)
+- "## Main Grammatical Concepts Discussed" (exact wording!)
+- "## Secondary Grammatical Concepts Discussed" (exact wording!)
+- "## Pronunciation Notes" (not "Pronunciation" or "Notes")
+- "## Cultural Context" (not "Culture" or "Context")
+- "## Points for Student Review and Requests" (exact wording!)
+- "## Homework" (not "Assignment" or "Tasks")
+
+**IF YOU DEVIATE FROM THESE EXACT HEADINGS, THE SYSTEM WILL BREAK.**
 
 ---
 
@@ -57,12 +78,20 @@ Use the following exact Markdown format and section headers:
 [A maximum of 2 lines summarizing the key focus of the lesson. Keep it short and clear.]
 
 ## New Vocabulary
+**IMPORTANT: This section MUST use "### " for subsections (Nouns, Verbs, etc.)**
 (Include only words clearly introduced as new. Look for cues such as: This means X, Let us add this word, What does this mean, etc.)
 
-- Nouns:
-- Verbs:
-- Adjectives or Adverbs:
-- Other:
+### Nouns:
+- [List nouns here, or write "None"]
+
+### Verbs:
+- [List verbs here, or write "None"]
+
+### Adjectives or Adverbs:
+- [List adjectives/adverbs here, or write "None"]
+
+### Other:
+- [List other vocabulary here, or write "None"]
 
 ## Key Expressions and Phrases
 (here you dont mention just normal senteces, like: انا اسمي محمد -- عمري 20 سنة - no , here you write "using your contextual intelegent
@@ -77,22 +106,22 @@ the sentences that are considered standar, key expressins, daily phrases, leavan
 - مش مهم
 - بالتوفيق
 - حكي فاضي
-- Etc.
+- [Or write "None" if no key expressions were taught]
 
 ## Main Grammatical Concepts Discussed
-(Summarize grammar points that were fully explained as the main focus.)
+(Summarize grammar points that were fully explained as the main focus. Write "None" if no grammar was the main focus.)
 
-## Secondary Grammatical Concepts Discussed  Brief Mentions
-(Include minor grammar notes mentioned briefly, not the main lesson.)
+## Secondary Grammatical Concepts Discussed
+(Include minor grammar notes mentioned briefly, not the main lesson. Write "None" if no secondary concepts.)
 
 ## Pronunciation Notes
-(List any specific pronunciation corrections or guidance provided.)
+(List any specific pronunciation corrections or guidance provided. Write "None" if no pronunciation guidance.)
 
 ## Cultural Context
-(Include any cultural explanations linked to language use.)
+(Include any cultural explanations linked to language use. Write "None" if no cultural context.)
 
 ## Points for Student Review and Requests
-(Note 1-2 areas the student found challenging or requested clarification on.)
+(Note 1-2 areas the student found challenging or requested clarification on. Write "None" if no challenges noted.)
 
 ## Homework
 (If homework was assigned, describe it. Otherwise state: No homework was assigned in this lesson.)

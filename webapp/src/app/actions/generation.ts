@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { generateHomework, generateSummary } from "@/lib/ai/generate";
+import { generateEmbedding, prepareCombinedContent } from "@/lib/ai/embeddings";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 interface GenerationResult {
@@ -17,6 +18,19 @@ export async function generateSessionArtifactsAction(
   userContext?: string,
   selectedPromptId?: string,
 ): Promise<GenerationResult> {
+  // Normalize Next.js serialized undefined
+  const normalizedPromptId = selectedPromptId === "$undefined" ? undefined : selectedPromptId;
+  const normalizedContext = userContext === "$undefined" ? undefined : userContext;
+
+// ADD THESE DEBUG LOGS:
+console.log("🔍 SERVER ACTION RECEIVED:", {
+  sessionId,
+  options,
+  userContext,
+  selectedPromptId,
+  normalizedContext,
+  normalizedPromptId
+});
   if (!sessionId) {
     throw new Error("Session ID is required");
   }
@@ -43,7 +57,7 @@ export async function generateSessionArtifactsAction(
     error: sessionError,
   } = await supabase
     .from("sessions")
-    .select("id, transcript, student_id")
+    .select("id, transcript, student_id, summary_md, homework_md")
     .eq("id", sessionId)
     .eq("owner_user_id", user.id)
     .maybeSingle();
@@ -91,11 +105,11 @@ export async function generateSessionArtifactsAction(
   let homeworkPromptOverride: string | undefined;
 
   // If user manually selected a prompt, use it for both summary and homework
-  if (selectedPromptId) {
+  if (normalizedPromptId) {
     const { data: promptRow, error: promptError } = await supabase
       .from("prompts")
       .select("prompt_text")
-      .eq("id", selectedPromptId)
+      .eq("id", normalizedPromptId)
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -105,7 +119,7 @@ export async function generateSessionArtifactsAction(
       summaryPromptOverride = promptRow.prompt_text;
       homeworkPromptOverride = promptRow.prompt_text;
     } else {
-      console.warn("Selected prompt not available for user", { selectedPromptId, userId: user.id });
+      console.warn("Selected prompt not available for user", { selectedPromptId: normalizedPromptId, userId: user.id });
     }
   } else {
     // No manual selection - load user's default prompts
@@ -175,6 +189,11 @@ export async function generateSessionArtifactsAction(
     homework_md?: string | null;
     generation_status?: string;
     generation_started_at?: string | null;
+    summary_embedding?: number[] | null;
+    homework_embedding?: number[] | null;
+    combined_content?: string;
+    embeddings_generated_at?: string;
+    embedding_model?: string;
   } = {};
   let errorMessage: string | undefined;
   let summaryGenerated = false;
@@ -182,10 +201,40 @@ export async function generateSessionArtifactsAction(
 
   if (runSummary) {
     try {
-      const summaryMd = await generateSummary(transcript, userContext, summaryPromptOverride);
+      console.log("🎯 GENERATING SUMMARY with:", {
+        transcriptLength: transcript.length,
+        normalizedContext,
+        hasSummaryPromptOverride: !!summaryPromptOverride
+      });
+      let summaryMd = await generateSummary(transcript, normalizedContext, summaryPromptOverride);
+
+      // Validate and auto-fix summary structure
+      const requiredHeadings = [
+        '## Lesson Details',
+        '## High-Level Summary',
+        '## New Vocabulary',
+        '## Key Expressions and Phrases',
+        '## Main Grammatical Concepts Discussed',
+        '## Homework'
+      ];
+
+      // Auto-fix common heading mistakes
+      summaryMd = summaryMd
+        .replace(/^## Vocabulary$/gm, '## New Vocabulary')
+        .replace(/^## Summary$/gm, '## High-Level Summary')
+        .replace(/^## Grammar$/gm, '## Main Grammatical Concepts Discussed');
+
+      // Check if critical headings exist
+      const missingHeadings = requiredHeadings.filter(h => !summaryMd.includes(h));
+      if (missingHeadings.length > 0) {
+        console.warn("⚠️ SUMMARY MISSING HEADINGS:", missingHeadings);
+      }
+
+      console.log("✅ SUMMARY GENERATED:", summaryMd.substring(0, 100));
       updates.summary_md = summaryMd;
       summaryGenerated = true;
     } catch (error) {
+      console.error("❌ SUMMARY GENERATION ERROR:", error);
       updates.summary_md = null;
       const message = error instanceof Error ? error.message : String(error);
       errorMessage = errorMessage ? `${errorMessage}; ${message}` : message;
@@ -194,10 +243,17 @@ export async function generateSessionArtifactsAction(
 
   if (runHomework) {
     try {
-      const homeworkMd = await generateHomework(transcript, userContext, homeworkPromptOverride);
+      console.log("🎯 GENERATING HOMEWORK with:", {
+        transcriptLength: transcript.length,
+        normalizedContext,
+        hasHomeworkPromptOverride: !!homeworkPromptOverride
+      });
+      const homeworkMd = await generateHomework(transcript, normalizedContext, homeworkPromptOverride);
+      console.log("✅ HOMEWORK GENERATED:", homeworkMd.substring(0, 100));
       updates.homework_md = homeworkMd;
       homeworkGenerated = true;
     } catch (error) {
+      console.error("❌ HOMEWORK GENERATION ERROR:", error);
       updates.homework_md = null;
       const message = error instanceof Error ? error.message : String(error);
       errorMessage = errorMessage ? `${errorMessage}; ${message}` : message;
@@ -205,6 +261,7 @@ export async function generateSessionArtifactsAction(
   }
 
   // Set final status based on results
+  console.log("📊 FINAL STATUS:", { summaryGenerated, homeworkGenerated, errorMessage, updates });
   if (errorMessage) {
     updates.generation_status = "error";
   } else if (summaryGenerated || homeworkGenerated) {
@@ -213,6 +270,39 @@ export async function generateSessionArtifactsAction(
     updates.generation_status = "idle";
   }
   updates.generation_started_at = null; // Clear started timestamp
+
+  // Generate embeddings if summary or homework was created
+  if (summaryGenerated || homeworkGenerated) {
+    try {
+      console.log("🔄 Generating embeddings...");
+
+      const summaryText = updates.summary_md || session.summary_md || '';
+      const homeworkText = updates.homework_md || session.homework_md || '';
+
+      // Generate embeddings
+      const summaryEmbedding = summaryText.trim()
+        ? await generateEmbedding(summaryText)
+        : null;
+
+      const homeworkEmbedding = homeworkText.trim()
+        ? await generateEmbedding(homeworkText)
+        : null;
+
+      const combinedContent = prepareCombinedContent(summaryText, homeworkText);
+
+      // Add embeddings to updates
+      updates.summary_embedding = summaryEmbedding;
+      updates.homework_embedding = homeworkEmbedding;
+      updates.combined_content = combinedContent;
+      updates.embeddings_generated_at = new Date().toISOString();
+      updates.embedding_model = 'text-embedding-3-small';
+
+      console.log("✅ Embeddings generated successfully");
+    } catch (embeddingError) {
+      console.error("❌ Embedding generation failed (non-fatal):", embeddingError);
+      // Don't fail the whole operation if embeddings fail
+    }
+  }
 
   if (Object.keys(updates).length > 0) {
     await supabase
