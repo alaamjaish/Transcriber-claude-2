@@ -7,17 +7,22 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate-embeddings": "tsx scripts/generate-embeddings.ts"
+    "generate-embeddings": "tsx scripts/generate-embeddings.ts",
+    "test-tools": "tsx scripts/test-tools.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.23",
+    "@anthropic-ai/sdk": "^0.65.0",
     "@soniox/speech-to-text-web": "^1.2.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
+    "ai": "^5.0.60",
     "next": "^15.5.4",
     "openai": "^6.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "sonner": "^2.0.7"
+    "sonner": "^2.0.7",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

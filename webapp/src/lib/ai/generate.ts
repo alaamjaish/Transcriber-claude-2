@@ -6,14 +6,17 @@ export async function generateSummary(
   transcript: string,
   userContext?: string,
   promptOverride?: string,
+  lessonDate?: string,
+  studentName?: string,
 ): Promise<string> {
   const content = transcript?.trim();
   if (!content) {
     throw new Error("No transcript provided");
   }
 
-  // Get current date/time
-  const currentDate = new Date().toLocaleString('en-US', {
+  // Get lesson date (or fallback to current date)
+  const dateToUse = lessonDate ? new Date(lessonDate) : new Date();
+  const formattedDate = dateToUse.toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -27,7 +30,12 @@ export async function generateSummary(
     ? promptOverride
     : SUMMARY_INSTRUCTIONS;
 
-  const systemInstruction = `Current Date/Time: ${currentDate}\n\n${baseSystemInstruction}`;
+  // Build context header with student name and lesson date
+  const contextHeader = studentName
+    ? `Student: ${studentName} | Lesson Date: ${formattedDate}`
+    : `Lesson Date: ${formattedDate}`;
+
+  const systemInstruction = `${contextHeader}\n\n${baseSystemInstruction}`;
 
   const basePromptText = promptOverride && promptOverride.trim().length > 0
     ? "" // Don't duplicate in user message
@@ -54,14 +62,17 @@ export async function generateHomework(
   transcript: string,
   userContext?: string,
   promptOverride?: string,
+  lessonDate?: string,
+  studentName?: string,
 ): Promise<string> {
   const content = transcript?.trim();
   if (!content) {
     throw new Error("No transcript provided");
   }
 
-  // Get current date/time
-  const currentDate = new Date().toLocaleString('en-US', {
+  // Get lesson date (or fallback to current date)
+  const dateToUse = lessonDate ? new Date(lessonDate) : new Date();
+  const formattedDate = dateToUse.toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -75,7 +86,12 @@ export async function generateHomework(
     ? promptOverride
     : HOMEWORK_INSTRUCTIONS;
 
-  const systemInstruction = `Current Date/Time: ${currentDate}\n\n${baseSystemInstruction}`;
+  // Build context header with student name and lesson date
+  const contextHeader = studentName
+    ? `Student: ${studentName} | Lesson Date: ${formattedDate}`
+    : `Lesson Date: ${formattedDate}`;
+
+  const systemInstruction = `${contextHeader}\n\n${baseSystemInstruction}`;
 
   const basePromptText = promptOverride && promptOverride.trim().length > 0
     ? "" // Don't duplicate in user message

@@ -22,7 +22,11 @@
       "Bash(dir tail:*)",
       "Bash(dir:*)",
       "Bash(npx supabase db push:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(cat:*)",
+      "Bash(git log:*)",
+      "Bash(npx supabase db inspect:*)"
     ],
     "deny": [],
     "ask": []

@@ -57,7 +57,15 @@ console.log("🔍 SERVER ACTION RECEIVED:", {
     error: sessionError,
   } = await supabase
     .from("sessions")
-    .select("id, transcript, student_id, summary_md, homework_md")
+    .select(`
+      id,
+      transcript,
+      student_id,
+      summary_md,
+      homework_md,
+      created_at,
+      students!inner(name)
+    `)
     .eq("id", sessionId)
     .eq("owner_user_id", user.id)
     .maybeSingle();
@@ -71,6 +79,8 @@ console.log("🔍 SERVER ACTION RECEIVED:", {
   }
 
   const transcript = session.transcript ?? "";
+  const lessonDate = session.created_at;
+  const studentName = (session.students as any)?.name;
 
   if (!transcript.trim()) {
     const emptyUpdates: {
@@ -204,9 +214,11 @@ console.log("🔍 SERVER ACTION RECEIVED:", {
       console.log("🎯 GENERATING SUMMARY with:", {
         transcriptLength: transcript.length,
         normalizedContext,
-        hasSummaryPromptOverride: !!summaryPromptOverride
+        hasSummaryPromptOverride: !!summaryPromptOverride,
+        lessonDate,
+        studentName
       });
-      let summaryMd = await generateSummary(transcript, normalizedContext, summaryPromptOverride);
+      let summaryMd = await generateSummary(transcript, normalizedContext, summaryPromptOverride, lessonDate, studentName);
 
       // Validate and auto-fix summary structure
       const requiredHeadings = [
@@ -246,9 +258,11 @@ console.log("🔍 SERVER ACTION RECEIVED:", {
       console.log("🎯 GENERATING HOMEWORK with:", {
         transcriptLength: transcript.length,
         normalizedContext,
-        hasHomeworkPromptOverride: !!homeworkPromptOverride
+        hasHomeworkPromptOverride: !!homeworkPromptOverride,
+        lessonDate,
+        studentName
       });
-      const homeworkMd = await generateHomework(transcript, normalizedContext, homeworkPromptOverride);
+      const homeworkMd = await generateHomework(transcript, normalizedContext, homeworkPromptOverride, lessonDate, studentName);
       console.log("✅ HOMEWORK GENERATED:", homeworkMd.substring(0, 100));
       updates.homework_md = homeworkMd;
       homeworkGenerated = true;
