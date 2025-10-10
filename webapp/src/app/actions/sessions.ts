@@ -224,15 +224,17 @@ export async function updateSessionContentAction({
     const homeworkEmbedding = finalHomework.trim() ? await generateEmbedding(finalHomework) : null;
     const combinedContent = prepareCombinedContent(finalSummary, finalHomework);
 
+    const embeddingUpdates: Record<string, unknown> = {
+      summary_embedding: summaryEmbedding,
+      homework_embedding: homeworkEmbedding,
+      combined_content: combinedContent,
+      embeddings_generated_at: new Date().toISOString(),
+      embedding_model: "text-embedding-3-small",
+    };
+
     await supabase
       .from("sessions")
-      .update({
-        summary_embedding: summaryEmbedding,
-        homework_embedding: homeworkEmbedding,
-        combined_content: combinedContent,
-        embeddings_generated_at: new Date().toISOString(),
-        embedding_model: "text-embedding-3-small",
-      })
+      .update(embeddingUpdates)
       .eq("id", sessionId)
       .eq("owner_user_id", user.id);
   } catch (embeddingError) {
