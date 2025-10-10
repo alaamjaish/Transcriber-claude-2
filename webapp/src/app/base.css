@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Override Tailwind's default font families with results.md font stack */
 @theme {

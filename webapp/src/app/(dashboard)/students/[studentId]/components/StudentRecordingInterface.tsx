@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { generateSessionArtifactsAction } from "@/app/actions/generation";
@@ -13,10 +13,15 @@ import { RecordingConsole } from "@/app/(dashboard)/recordings/components/Record
 import { useAudioMixer } from "@/app/(dashboard)/recordings/hooks/useAudioMixer";
 import { useSonioxToken } from "@/app/(dashboard)/recordings/hooks/useSonioxToken";
 import { useSonioxStream } from "@/app/(dashboard)/recordings/hooks/useSonioxStream";
+import { useLocalBackup } from "@/app/(dashboard)/recordings/hooks/useLocalBackup";
+import { useNetworkMonitor } from "@/app/(dashboard)/recordings/hooks/useNetworkMonitor";
+import { useUploadQueue } from "@/app/(dashboard)/recordings/hooks/useUploadQueue";
 
 function buildTranscriptPreview(text: string, maxWords = 8): string {
   const trimmed = text.trim();
-  if (!trimmed) return "";
+  if (!trimmed) {
+    return "";
+  }
   const words = trimmed.split(/\s+/);
   if (words.length <= maxWords) {
     return trimmed;
@@ -34,20 +39,133 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
   const soniox = useSonioxStream();
   const router = useRouter();
   const { appendSession } = useSessionList();
+  const backup = useLocalBackup();
+  const { isOnline, justWentOnline } = useNetworkMonitor();
+  const { processQueue, queueCount } = useUploadQueue();
 
   const [savingSession, setSavingSession] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   const recordingActionsRef = useRef<RecordingActions | null>(null);
+  const isRecordingRef = useRef(false);
+  const recoveryAttemptedRef = useRef(false);
 
   const mixerError = useMemo(() => mixer.state.error, [mixer.state.error]);
+
+  useEffect(() => {
+    if (recoveryAttemptedRef.current) {
+      return;
+    }
+
+    const draft = backup.loadDraft();
+    if (!draft || draft.studentId !== student.id) {
+      return;
+    }
+
+    recoveryAttemptedRef.current = true;
+    setSavingSession(true);
+    setSaveError(null);
+    setSaveSuccess(null);
+
+    const recover = async () => {
+      try {
+        const saved = await saveSessionAction({
+          transcript: draft.transcript,
+          durationMs: draft.durationMs,
+          studentId: draft.studentId,
+          startedAt: draft.startedAt,
+        });
+
+        backup.clearDraft();
+        setSaveSuccess("Recovered recording saved successfully.");
+
+        const hasTranscript = draft.transcript.trim().length > 0;
+        const optimisticSession: Session = {
+          id: saved.id,
+          studentId: draft.studentId,
+          studentName: draft.studentName,
+          recordedAt: saved.timestamp,
+          durationMs: saved.durationMs ?? draft.durationMs,
+          transcript: draft.transcript,
+          transcriptPreview: buildTranscriptPreview(draft.transcript),
+          generationStatus: hasTranscript ? "generating" : "empty",
+          summaryReady: false,
+          homeworkReady: false,
+          summaryMd: null,
+          homeworkMd: null,
+          aiGenerationStatus: hasTranscript ? "generating" : "idle",
+          aiGenerationStartedAt: hasTranscript ? new Date().toISOString() : null,
+        };
+
+        appendSession(optimisticSession);
+
+        if (hasTranscript) {
+          generateSessionArtifactsAction(saved.id).catch((error) => {
+            console.error("AI generation error", error);
+          });
+        }
+
+        router.refresh();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to recover recording";
+        setSaveError(`${message} - saved locally and will retry when online`);
+        backup.addToQueue({
+          studentId: draft.studentId,
+          studentName: draft.studentName,
+          transcript: draft.transcript,
+          startedAt: draft.startedAt,
+          durationMs: draft.durationMs,
+        });
+      } finally {
+        setSavingSession(false);
+      }
+    };
+
+    void recover();
+  }, [appendSession, backup, router, student.id, student.name]);
+
+  useEffect(() => {
+    if ((justWentOnline || isOnline) && queueCount > 0) {
+      processQueue();
+    }
+  }, [isOnline, justWentOnline, processQueue, queueCount]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isRecordingRef.current) {
+        return;
+      }
+
+      const transcriptText = soniox.getTranscriptText ? soniox.getTranscriptText() : "";
+      if (transcriptText.trim()) {
+        backup.saveDraft({
+          studentId: student.id,
+          studentName: student.name,
+          transcript: transcriptText,
+          startedAt: soniox.getStartTimestamp?.() ?? Date.now(),
+          durationMs: Date.now() - (soniox.getStartTimestamp?.() ?? Date.now()),
+          speakerCount: soniox.getSpeakerCount ? soniox.getSpeakerCount() : 0,
+          status: "recording",
+          lastSaved: Date.now(),
+        });
+      }
+
+      event.preventDefault();
+      event.returnValue = "You have an active recording. Your progress has been saved and will restore on reload.";
+      return event.returnValue;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [backup, soniox, student.id, student.name]);
 
   const startPipeline = useCallback(
     async (actions: RecordingActions) => {
       recordingActionsRef.current = actions;
 
-      // Reset previous transcript when starting new recording
       actions.reset();
 
       try {
@@ -63,7 +181,9 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
           systemGain: 1,
         });
 
-        actions.setLive(Date.now());
+        const startTime = Date.now();
+        actions.setLive(startTime);
+        isRecordingRef.current = true;
 
         await soniox.start({
           apiKey: token.apiKey,
@@ -71,15 +191,28 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
           stream,
           actions,
         });
-      } catch (err) {
-        const message = (err as Error).message || "Failed to start recording";
+
+        backup.startAutoSave(() => ({
+          studentId: student.id,
+          studentName: student.name,
+          transcript: soniox.getTranscriptText ? soniox.getTranscriptText() : "",
+          startedAt: soniox.getStartTimestamp?.() ?? startTime,
+          durationMs: Date.now() - (soniox.getStartTimestamp?.() ?? startTime),
+          speakerCount: soniox.getSpeakerCount ? soniox.getSpeakerCount() : 0,
+          status: "recording",
+          lastSaved: Date.now(),
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to start recording";
         actions.fail(message);
         soniox.stop({ resetStart: true });
         mixer.stop();
-        throw err;
+        backup.stopAutoSave();
+        isRecordingRef.current = false;
+        throw error;
       }
     },
-    [fetchToken, mixer, soniox],
+    [backup, fetchToken, mixer, soniox, student.id, student.name],
   );
 
   const handleStart = useCallback(
@@ -87,11 +220,10 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
       setSaveError(null);
       setSaveSuccess(null);
 
-      // Since we're in a student context, automatically start recording without student selection
       try {
         await startPipeline(actions);
-      } catch (err) {
-        console.error("Recording start error:", err);
+      } catch (error) {
+        console.error("Recording start error", error);
       }
     },
     [startPipeline],
@@ -103,6 +235,7 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
 
   const handleStop = useCallback(
     async (actions: RecordingActions, result?: RecordingResult) => {
+      isRecordingRef.current = false;
       setSavingSession(true);
       setSaveError(null);
       setSaveSuccess(null);
@@ -113,6 +246,7 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
         console.warn("Soniox stop error", error);
       }
       mixer.stop();
+      backup.stopAutoSave();
 
       const transcriptText = soniox.getTranscriptText ? soniox.getTranscriptText() : result?.transcript ?? "";
       const finalTranscript = transcriptText.trim();
@@ -120,7 +254,6 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
       const durationMs = result?.durationMs && result.durationMs > 0 ? result.durationMs : Math.max(0, Date.now() - startedAt);
 
       try {
-        // Automatically use the current student ID
         const saved = await saveSessionAction({
           transcript: finalTranscript,
           durationMs,
@@ -128,9 +261,9 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
           startedAt,
         });
 
+        backup.clearDraft();
         setSaveSuccess("Session saved. Generating summary and homework...");
 
-        // Fire-and-forget: Start AI generation without blocking UI
         if (saved?.id) {
           const hasTranscript = finalTranscript.length > 0;
           const optimisticSession: Session = {
@@ -154,39 +287,71 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
 
           generateSessionArtifactsAction(saved.id).catch((error) => {
             console.error("AI generation error", error);
-            // Don't show error to user since this is background generation
           });
         }
 
         router.refresh();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to save session";
-        setSaveError(message);
-        throw error;
+        console.error("Save error", error);
+
+        backup.addToQueue({
+          studentId: student.id,
+          studentName: student.name,
+          transcript: finalTranscript,
+          startedAt,
+          durationMs,
+        });
+
+        setSaveError(`${message} - saved locally and will retry when online`);
       } finally {
         setSavingSession(false);
       }
     },
-    [appendSession, student.id, student.name, mixer, router, soniox],
+    [appendSession, backup, mixer, router, soniox, student.id, student.name],
   );
 
   const handleCancel = useCallback(
     async (actions: RecordingActions) => {
+      isRecordingRef.current = false;
       try {
         soniox.stop({ resetStart: true });
       } catch (error) {
         console.warn("Soniox cancel error", error);
       }
       mixer.stop();
+      backup.stopAutoSave();
       resetActions(actions);
       setSaveError(null);
       setSaveSuccess(null);
     },
-    [mixer, resetActions, soniox],
+    [backup, mixer, resetActions, soniox],
   );
 
   return (
     <div className="space-y-3">
+      {!isOnline && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 flex-shrink-0 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1">
+              <p className="font-medium text-amber-900 dark:text-amber-200">No internet connection</p>
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                Recordings are saved locally and will upload automatically when the connection returns.
+                {queueCount > 0 && ` (${queueCount} recording${queueCount > 1 ? "s" : ""} waiting to upload)`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {justWentOnline && queueCount > 0 && (
+        <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+          Connection restored. Uploading {queueCount} queued recording{queueCount > 1 ? "s" : ""}...
+        </div>
+      )}
 
       {tokenError ? (
         <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">

@@ -252,9 +252,8 @@ export async function runAgent(
 
   // CLEAN LOGGING - Only show tool names
   if (result.steps && result.steps.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toolNames = result.steps.flatMap((step: any) =>
-      step.toolCalls?.map((tc: any) => tc.toolName) || []
+    const toolNames = result.steps.flatMap((step) =>
+      step.toolCalls?.map((tc) => tc.toolName) || []
     );
     console.log('🔧 [TOOLS USED]:', toolNames.join(', '));
   } else {
@@ -262,8 +261,7 @@ export async function runAgent(
   }
 
   // LOG CACHE STATISTICS
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cacheMetadata = (result as any).providerMetadata?.anthropic;
+  const cacheMetadata = result.providerMetadata?.anthropic as { cacheCreationInputTokens?: number; cacheReadInputTokens?: number } | undefined;
   if (cacheMetadata) {
     const cacheCreation = cacheMetadata.cacheCreationInputTokens || 0;
     const cacheRead = cacheMetadata.cacheReadInputTokens || 0;

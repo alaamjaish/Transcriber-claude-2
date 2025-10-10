@@ -8,14 +8,17 @@ import { saveSessionAction } from "@/app/actions/sessions";
 import { listStudentsAction } from "@/app/actions/students";
 import { useSelectedStudent } from "@/components/layout/SelectedStudentProvider";
 import type { Session, Student } from "@/lib/types";
-import { useSessionList } from "./SessionListProvider";
 
+import { useSessionList } from "./SessionListProvider";
 import type { RecordingActions, RecordingResult } from "./RecordingConsole";
 import { RecordingConsole } from "./RecordingConsole";
 import { StudentPickerDialog } from "./StudentPickerDialog";
 import { useAudioMixer } from "../hooks/useAudioMixer";
 import { useSonioxToken } from "../hooks/useSonioxToken";
 import { useSonioxStream } from "../hooks/useSonioxStream";
+import { useLocalBackup } from "../hooks/useLocalBackup";
+import { useNetworkMonitor } from "../hooks/useNetworkMonitor";
+import { useUploadQueue } from "../hooks/useUploadQueue";
 
 interface PendingStartRef {
   actions: RecordingActions;
@@ -25,7 +28,9 @@ interface PendingStartRef {
 
 function buildTranscriptPreview(text: string, maxWords = 8): string {
   const trimmed = text.trim();
-  if (!trimmed) return "";
+  if (!trimmed) {
+    return "";
+  }
   const words = trimmed.split(/\s+/);
   if (words.length <= maxWords) {
     return trimmed;
@@ -34,27 +39,31 @@ function buildTranscriptPreview(text: string, maxWords = 8): string {
 }
 
 export function RecordingWorkspaceShell() {
-  const { currentStudentId, currentStudentName } = useSelectedStudent();
+  const { currentStudentId, currentStudentName, setCurrentStudent } = useSelectedStudent();
   const { fetchToken, loading: tokenLoading, error: tokenError } = useSonioxToken();
   const mixer = useAudioMixer();
   const soniox = useSonioxStream();
   const router = useRouter();
   const { appendSession } = useSessionList();
+  const backup = useLocalBackup();
+  const { isOnline, justWentOnline } = useNetworkMonitor();
+  const { processQueue, queueCount } = useUploadQueue();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
-  // Preloaded students state
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState<string | null>(null);
 
   const recordingActionsRef = useRef<RecordingActions | null>(null);
   const pendingStartRef = useRef<PendingStartRef | null>(null);
+  const selectedStudentRef = useRef<{ id: string; name: string } | null>(null);
+  const isRecordingRef = useRef(false);
+  const recoveryAttemptedRef = useRef(false);
 
-  // Preload students on component mount
   useEffect(() => {
     let active = true;
     setStudentsLoading(true);
@@ -62,12 +71,16 @@ export function RecordingWorkspaceShell() {
 
     listStudentsAction()
       .then((result) => {
-        if (!active) return;
+        if (!active) {
+          return;
+        }
         setStudents(result);
       })
-      .catch((err: unknown) => {
-        if (!active) return;
-        const message = err instanceof Error ? err.message : "Failed to load students";
+      .catch((error: unknown) => {
+        if (!active) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : "Failed to load students";
         setStudentsError(message);
       })
       .finally(() => {
@@ -87,7 +100,6 @@ export function RecordingWorkspaceShell() {
     async (actions: RecordingActions) => {
       recordingActionsRef.current = actions;
 
-      // Reset previous transcript when starting new recording
       actions.reset();
 
       try {
@@ -103,7 +115,9 @@ export function RecordingWorkspaceShell() {
           systemGain: 1,
         });
 
-        actions.setLive(Date.now());
+        const startTime = Date.now();
+        actions.setLive(startTime);
+        isRecordingRef.current = true;
 
         await soniox.start({
           apiKey: token.apiKey,
@@ -111,15 +125,34 @@ export function RecordingWorkspaceShell() {
           stream,
           actions,
         });
-      } catch (err) {
-        const message = (err as Error).message || "Failed to start recording";
+
+        const activeStudent = selectedStudentRef.current ?? (currentStudentId
+          ? { id: currentStudentId, name: currentStudentName ?? "" }
+          : null);
+
+        if (activeStudent) {
+          backup.startAutoSave(() => ({
+            studentId: activeStudent.id,
+            studentName: activeStudent.name,
+            transcript: soniox.getTranscriptText ? soniox.getTranscriptText() : "",
+            startedAt: soniox.getStartTimestamp?.() ?? startTime,
+            durationMs: Date.now() - (soniox.getStartTimestamp?.() ?? startTime),
+            speakerCount: soniox.getSpeakerCount ? soniox.getSpeakerCount() : 0,
+            status: "recording",
+            lastSaved: Date.now(),
+          }));
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to start recording";
         actions.fail(message);
         soniox.stop({ resetStart: true });
         mixer.stop();
-        throw err;
+        backup.stopAutoSave();
+        isRecordingRef.current = false;
+        throw error;
       }
     },
-    [fetchToken, mixer, soniox],
+    [backup, currentStudentId, currentStudentName, fetchToken, mixer, soniox],
   );
 
   const handleStart = useCallback(
@@ -141,6 +174,7 @@ export function RecordingWorkspaceShell() {
 
   const handleStop = useCallback(
     async (actions: RecordingActions, result?: RecordingResult) => {
+      isRecordingRef.current = false;
       setSavingSession(true);
       setSaveError(null);
       setSaveSuccess(null);
@@ -151,33 +185,38 @@ export function RecordingWorkspaceShell() {
         console.warn("Soniox stop error", error);
       }
       mixer.stop();
+      backup.stopAutoSave();
 
       const transcriptText = soniox.getTranscriptText ? soniox.getTranscriptText() : result?.transcript ?? "";
       const finalTranscript = transcriptText.trim();
       const startedAt = result?.startedAt ?? soniox.getStartTimestamp?.() ?? Date.now();
       const durationMs = result?.durationMs && result.durationMs > 0 ? result.durationMs : Math.max(0, Date.now() - startedAt);
 
+      const activeStudent = currentStudentId
+        ? { id: currentStudentId, name: currentStudentName ?? "" }
+        : selectedStudentRef.current;
+
       try {
-        if (!currentStudentId) {
+        if (!activeStudent?.id) {
           throw new Error("Select a student before saving the session");
         }
 
         const saved = await saveSessionAction({
           transcript: finalTranscript,
           durationMs,
-          studentId: currentStudentId,
+          studentId: activeStudent.id,
           startedAt,
         });
 
+        backup.clearDraft();
         setSaveSuccess("Session saved. Generating summary and homework...");
 
-        // Fire-and-forget: Start AI generation without blocking UI
         if (saved?.id) {
           const hasTranscript = finalTranscript.length > 0;
           const optimisticSession: Session = {
             id: saved.id,
-            studentId: currentStudentId,
-            studentName: currentStudentName ?? undefined,
+            studentId: activeStudent.id,
+            studentName: activeStudent.name || undefined,
             recordedAt: saved.timestamp,
             durationMs: saved.durationMs ?? durationMs,
             transcript: finalTranscript,
@@ -195,7 +234,6 @@ export function RecordingWorkspaceShell() {
 
           generateSessionArtifactsAction(saved.id).catch((error) => {
             console.error("AI generation error", error);
-            // Don't show error to user since this is background generation
           });
         }
 
@@ -203,39 +241,52 @@ export function RecordingWorkspaceShell() {
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to save session";
         setSaveError(message);
-        throw error;
+
+        if (activeStudent?.id) {
+          backup.addToQueue({
+            studentId: activeStudent.id,
+            studentName: activeStudent.name,
+            transcript: finalTranscript,
+            startedAt,
+            durationMs,
+          });
+          setSaveError(`${message} - saved locally and will retry when online`);
+        }
       } finally {
+        selectedStudentRef.current = null;
         setSavingSession(false);
       }
     },
-    [appendSession, currentStudentId, currentStudentName, mixer, router, soniox],
+    [appendSession, backup, currentStudentId, currentStudentName, mixer, router, soniox],
   );
 
   const handleCancel = useCallback(
     async (actions: RecordingActions) => {
+      isRecordingRef.current = false;
       try {
         soniox.stop({ resetStart: true });
       } catch (error) {
         console.warn("Soniox cancel error", error);
       }
       mixer.stop();
+      backup.stopAutoSave();
+      selectedStudentRef.current = null;
       resetActions(actions);
       setSaveError(null);
       setSaveSuccess(null);
     },
-    [mixer, resetActions, soniox],
+    [backup, mixer, resetActions, soniox],
   );
 
   const handleStudentConfirmed = useCallback(
     async (student: { id: string; name: string }) => {
-      void student;
       const pending = pendingStartRef.current;
       if (!pending) {
         setPickerOpen(false);
         return;
       }
 
-      // Close dialog immediately to show status indicators
+      selectedStudentRef.current = student;
       setPickerOpen(false);
       setSaveError(null);
       setSaveSuccess(null);
@@ -243,8 +294,8 @@ export function RecordingWorkspaceShell() {
       try {
         await startPipeline(pending.actions);
         pending.resolve();
-      } catch (err) {
-        pending.reject(err);
+      } catch (error) {
+        pending.reject(error);
       } finally {
         pendingStartRef.current = null;
       }
@@ -262,6 +313,121 @@ export function RecordingWorkspaceShell() {
     }
   }, []);
 
+  useEffect(() => {
+    if (recoveryAttemptedRef.current) {
+      return;
+    }
+    const draft = backup.loadDraft();
+    if (!draft || !draft.studentId) {
+      return;
+    }
+
+    recoveryAttemptedRef.current = true;
+    setSavingSession(true);
+    setSaveError(null);
+    setSaveSuccess(null);
+
+    const recover = async () => {
+      try {
+        selectedStudentRef.current = { id: draft.studentId, name: draft.studentName };
+        await setCurrentStudent({ id: draft.studentId, name: draft.studentName });
+
+        const saved = await saveSessionAction({
+          transcript: draft.transcript,
+          durationMs: draft.durationMs,
+          studentId: draft.studentId,
+          startedAt: draft.startedAt,
+        });
+
+        backup.clearDraft();
+        setSaveSuccess("Recovered recording saved successfully.");
+
+        const hasTranscript = draft.transcript.trim().length > 0;
+        const optimisticSession: Session = {
+          id: saved.id,
+          studentId: draft.studentId,
+          studentName: draft.studentName,
+          recordedAt: saved.timestamp,
+          durationMs: saved.durationMs ?? draft.durationMs,
+          transcript: draft.transcript,
+          transcriptPreview: buildTranscriptPreview(draft.transcript),
+          generationStatus: hasTranscript ? "generating" : "empty",
+          summaryReady: false,
+          homeworkReady: false,
+          summaryMd: null,
+          homeworkMd: null,
+          aiGenerationStatus: hasTranscript ? "generating" : "idle",
+          aiGenerationStartedAt: hasTranscript ? new Date().toISOString() : null,
+        };
+
+        appendSession(optimisticSession);
+
+        if (hasTranscript) {
+          generateSessionArtifactsAction(saved.id).catch((error) => {
+            console.error("AI generation error", error);
+          });
+        }
+
+        router.refresh();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to recover recording";
+        setSaveError(`${message} - saved locally and will retry when online`);
+        backup.addToQueue({
+          studentId: draft.studentId,
+          studentName: draft.studentName,
+          transcript: draft.transcript,
+          startedAt: draft.startedAt,
+          durationMs: draft.durationMs,
+        });
+      } finally {
+        setSavingSession(false);
+      }
+    };
+
+    void recover();
+  }, [appendSession, backup, router, setCurrentStudent]);
+
+  useEffect(() => {
+    if ((justWentOnline || isOnline) && queueCount > 0) {
+      processQueue();
+    }
+  }, [isOnline, justWentOnline, processQueue, queueCount]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isRecordingRef.current) {
+        return;
+      }
+
+      const transcriptText = soniox.getTranscriptText ? soniox.getTranscriptText() : "";
+      const activeStudent = currentStudentId
+        ? { id: currentStudentId, name: currentStudentName ?? "" }
+        : selectedStudentRef.current;
+
+      if (transcriptText.trim() && activeStudent) {
+        backup.saveDraft({
+          studentId: activeStudent.id,
+          studentName: activeStudent.name,
+          transcript: transcriptText,
+          startedAt: soniox.getStartTimestamp?.() ?? Date.now(),
+          durationMs: Date.now() - (soniox.getStartTimestamp?.() ?? Date.now()),
+          speakerCount: soniox.getSpeakerCount ? soniox.getSpeakerCount() : 0,
+          status: "recording",
+          lastSaved: Date.now(),
+        });
+      }
+
+      event.preventDefault();
+      event.returnValue = "You have an active recording. Your progress has been saved and will restore on reload.";
+      return event.returnValue;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [backup, currentStudentId, currentStudentName, soniox]);
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs">
@@ -277,30 +443,46 @@ export function RecordingWorkspaceShell() {
         </button>
       </div>
 
+      {!isOnline && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 flex-shrink-0 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div className="flex-1">
+              <p className="font-medium text-amber-900 dark:text-amber-200">No internet connection</p>
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                Recordings are saved locally and will upload automatically when the connection returns.
+                {queueCount > 0 && ` (${queueCount} recording${queueCount > 1 ? "s" : ""} waiting to upload)`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {justWentOnline && queueCount > 0 && (
+        <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+          Connection restored. Uploading {queueCount} queued recording{queueCount > 1 ? "s" : ""}...
+        </div>
+      )}
+
       {tokenError ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
-          Token error: {tokenError}
-        </p>
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">Token error: {tokenError}</p>
       ) : null}
       {mixerError ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
-          Audio error: {mixerError}
-        </p>
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">Audio error: {mixerError}</p>
       ) : null}
       {soniox.state.error ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
-          Stream error: {soniox.state.error}
-        </p>
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">Stream error: {soniox.state.error}</p>
+      ) : null}
+      {studentsError ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">{studentsError}</p>
       ) : null}
       {saveError ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">
-          {saveError}
-        </p>
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">{saveError}</p>
       ) : null}
       {saveSuccess ? (
-        <p className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-200">
-          {saveSuccess}
-        </p>
+        <p className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-200">{saveSuccess}</p>
       ) : null}
 
       <RecordingConsole onStart={handleStart} onStop={handleStop} onCancel={handleCancel} />
@@ -310,7 +492,6 @@ export function RecordingWorkspaceShell() {
           {savingSession ? "Saving session to Supabase..." : "Preparing recording pipeline..."}
         </p>
       )}
-
 
       <StudentPickerDialog
         open={pickerOpen}
@@ -323,4 +504,8 @@ export function RecordingWorkspaceShell() {
     </div>
   );
 }
+
+
+
+
 

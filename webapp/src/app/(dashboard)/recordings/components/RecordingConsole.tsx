@@ -222,7 +222,7 @@ export function RecordingConsole({ onStart, onStop, onCancel, title = "Recording
             dispatch({ type: "FINISH", durationMs: duration });
             try {
               const result: RecordingResult = {
-                transcript: state.liveSegments.map(segment => `${segment.speaker}: ${segment.text}`).join("\\n"),
+                transcript: state.liveSegments.map(segment => `${segment.speaker}: ${segment.text}`).join("\n"),
                 durationMs: duration,
                 speakerCount: state.speakerCount,
                 startedAt: state.startedAt

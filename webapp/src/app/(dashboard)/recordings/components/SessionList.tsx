@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 import { generateSessionArtifactsAction } from "@/app/actions/generation";
-import { deleteSessionAction } from "@/app/actions/sessions";
+import { deleteSessionAction, updateSessionContentAction } from "@/app/actions/sessions";
 import { useSessionList } from "./SessionListProvider";
 import { statusLabel } from "@/lib/placeholder-data";
 import { ContextModal } from "./ContextModal";
+import { EditModal } from "./EditModal";
 
 
 type PanelKey = "transcript" | "summary" | "homework";
@@ -37,6 +39,12 @@ export function SessionList() {
     type: "summary" | "homework";
   }>({ isOpen: false, sessionId: "", type: "summary" });
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean;
+    sessionId: string;
+    type: "summary" | "homework";
+    content: string;
+  }>({ isOpen: false, sessionId: "", type: "summary", content: "" });
 
   const togglePanel = useCallback((sessionId: string, panel: PanelKey) => {
     setOpenPanels((prev) => {
@@ -103,6 +111,37 @@ export function SessionList() {
     anchor.download = fileName;
     anchor.click();
     URL.revokeObjectURL(url);
+  }, []);
+
+  const downloadPdf = useCallback(async (content: string, fileName: string) => {
+    const loadingToast = toast.loading("Generating PDF...");
+
+    try {
+      // Call backend API to generate PDF
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, filename: fileName }),
+      });
+
+      if (!response.ok) {
+        throw new Error('PDF generation failed');
+      }
+
+      // Get PDF blob and trigger download
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast.success("PDF downloaded successfully!", { id: loadingToast });
+    } catch (error) {
+      console.error('PDF download error:', error);
+      toast.error("Failed to generate PDF. Please try again.", { id: loadingToast });
+    }
   }, []);
 
   const deleteSession = useCallback(
@@ -224,6 +263,32 @@ export function SessionList() {
     }
     closeContextModal();
   }, [contextModal, regenerateSummary, regenerateHomework, closeContextModal]);
+
+  const openEditModal = useCallback((sessionId: string, type: "summary" | "homework", content: string) => {
+    setEditModal({ isOpen: true, sessionId, type, content });
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setEditModal({ isOpen: false, sessionId: "", type: "summary", content: "" });
+  }, []);
+
+  const handleSaveEdit = useCallback(async (newContent: string) => {
+    const { sessionId, type } = editModal;
+
+    // Optimistically update the UI
+    updateSession(sessionId, (session) => ({
+      ...session,
+      ...(type === "summary" ? { summaryMd: newContent } : { homeworkMd: newContent }),
+    }));
+
+    // Save to database
+    await updateSessionContentAction({
+      sessionId,
+      ...(type === "summary" ? { summaryMd: newContent } : { homeworkMd: newContent }),
+    });
+
+    router.refresh();
+  }, [editModal, updateSession, router]);
 
   useEffect(() => {
     setPendingGenerations((prev) => {
@@ -399,9 +464,9 @@ export function SessionList() {
                 </div>
 
                 {transcriptOpen && (
-                  <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
-                    {hasTranscript ? transcript : "No transcript available for this session."}
-                  </pre>
+                  <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 p-4">
+                    <MarkdownContent content={hasTranscript ? transcript : ""} emptyMessage="No transcript available for this session." />
+                  </div>
                 )}
 
                 <section className="space-y-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-4 shadow-sm transition-colors hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/60 cursor-pointer" onClick={() => togglePanel(session.id, "summary")}>
@@ -417,6 +482,14 @@ export function SessionList() {
                         {summaryOpen ? "Hide" : "View"}
                       </button>
                       <button
+                        className="rounded-md border border-amber-500 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-amber-600 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => openEditModal(session.id, "summary", summary)}
+                        disabled={!summaryReady}
+                        title="Edit summary"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
                         className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => copyToClipboard(summary, "Summary copied to clipboard.")}
                         disabled={!summaryReady}
@@ -425,10 +498,10 @@ export function SessionList() {
                       </button>
                       <button
                         className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={() => downloadText(summary, `${fileBase}-summary.md`)}
+                        onClick={() => downloadPdf(summary, `${fileBase}-summary.pdf`)}
                         disabled={!summaryReady}
                       >
-                        Export .md
+                        Export PDF
                       </button>
                       <button
                         className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
@@ -440,10 +513,11 @@ export function SessionList() {
                     </div>
                   </div>
                   {summaryOpen && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
-                        {summaryReady ? summary : "Summary not available yet."}
-                      </pre>
+                    <div onClick={(e) => e.stopPropagation()} className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-4">
+                      <MarkdownContent
+                        content={summaryReady ? summary : ""}
+                        emptyMessage="Summary not available yet."
+                      />
                     </div>
                   )}
                 </section>
@@ -461,6 +535,14 @@ export function SessionList() {
                         {homeworkOpen ? "Hide" : "View"}
                       </button>
                       <button
+                        className="rounded-md border border-amber-500 bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-amber-600 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        onClick={() => openEditModal(session.id, "homework", homework)}
+                        disabled={!homeworkReady}
+                        title="Edit homework"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
                         className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={() => copyToClipboard(homework, "Homework copied to clipboard.")}
                         disabled={!homeworkReady}
@@ -469,10 +551,10 @@ export function SessionList() {
                       </button>
                       <button
                         className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={() => downloadText(homework, `${fileBase}-homework.md`)}
+                        onClick={() => downloadPdf(homework, `${fileBase}-homework.pdf`)}
                         disabled={!homeworkReady}
                       >
-                        Export .md
+                        Export PDF
                       </button>
                       <button
                         className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 text-emerald-600 dark:text-emerald-300 transition hover:bg-emerald-100 dark:hover:bg-emerald-500/20 disabled:border-slate-300 dark:disabled:border-slate-700 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
@@ -484,10 +566,11 @@ export function SessionList() {
                     </div>
                   </div>
                   {homeworkOpen && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <pre className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-3 text-xs text-slate-900 dark:text-slate-200">
-                        {homeworkReady ? homework : "Homework not available yet."}
-                      </pre>
+                    <div onClick={(e) => e.stopPropagation()} className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 p-4">
+                      <MarkdownContent
+                        content={homeworkReady ? homework : ""}
+                        emptyMessage="Homework not available yet."
+                      />
                     </div>
                   )}
                 </section>
@@ -504,7 +587,20 @@ export function SessionList() {
         type={contextModal.type}
         isPending={pendingGenerations[contextModal.sessionId]?.[contextModal.type] ?? false}
       />
+
+      <EditModal
+        isOpen={editModal.isOpen}
+        title={editModal.type === "summary" ? "Summary" : "Homework"}
+        content={editModal.content}
+        onClose={closeEditModal}
+        onSave={handleSaveEdit}
+      />
     </div>
   );
 }
+
+
+
+
+
 

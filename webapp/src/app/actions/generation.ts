@@ -80,7 +80,7 @@ console.log("🔍 SERVER ACTION RECEIVED:", {
 
   const transcript = session.transcript ?? "";
   const lessonDate = session.created_at;
-  const studentName = (session.students as any)?.name;
+  const studentName = (session.students as { name: string } | null)?.name;
 
   if (!transcript.trim()) {
     const emptyUpdates: {

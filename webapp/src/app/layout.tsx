@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -28,10 +28,11 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
+      <body suppressHydrationWarning className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
         {children}
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );
 }
+
