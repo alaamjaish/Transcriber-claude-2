@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer';
 import { marked } from 'marked';
 
-let browserInstance: any = null;
+let browserInstance: Browser | null = null;
 
 async function getBrowser() {
   if (!browserInstance) {
