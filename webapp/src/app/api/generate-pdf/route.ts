@@ -1,23 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer, { Browser } from 'puppeteer';
 import { marked } from 'marked';
-
-let browserInstance: Browser | null = null;
-
-async function getBrowser() {
-  if (!browserInstance) {
-    browserInstance = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-      ],
-    });
-  }
-  return browserInstance;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,7 +48,42 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    const browser = await getBrowser();
+    let browser;
+
+    // Use different configuration for local vs production
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+      // Production: Use puppeteer-core + @sparticuz/chromium for serverless
+      const puppeteerCore = (await import('puppeteer-core')).default;
+      const chromium = (await import('@sparticuz/chromium')).default;
+
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: {
+          deviceScaleFactor: 1,
+          hasTouch: false,
+          height: 1080,
+          isLandscape: true,
+          isMobile: false,
+          width: 1920,
+        },
+        executablePath: await chromium.executablePath(),
+        headless: true,
+      });
+    } else {
+      // Development: Use regular puppeteer (includes bundled Chrome)
+      const puppeteer = (await import('puppeteer')).default;
+
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+        ],
+      });
+    }
+
     const page = await browser.newPage();
 
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -83,6 +100,7 @@ export async function POST(request: NextRequest) {
     });
 
     await page.close();
+    await browser.close();
 
     return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {
