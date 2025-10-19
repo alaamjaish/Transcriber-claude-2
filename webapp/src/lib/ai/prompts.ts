@@ -31,6 +31,7 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
      - enough -> بيكفّي  not بيكافي or بكافي
      - newer -> أجدد  not اجداد
      - كمان  not كامان
+     - also notice that we don't put the hamza in levant arabic, meaning if you got the transkript saying بيضاء, you should make it بيضا, and so on سماء --> سما etc.
      - some examples may include the names of the cities, and contries, try to make it make sense, like a use says Amman, and you see in the transcrript i live in امان in jordan, you should know for sure they mean عمّان!
      - HAVE CONTEXTUAL AWARNESS, USE YOUR Intellegence to make sense of things!
    - Always review the transcript for such errors and normalize them to correct Levantine forms.
@@ -41,6 +42,7 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
    - if No homework was assigned in this lesson, and nothing mention, write that nothing was mentioned!
    - Do not create or suggest your own homework.
 
+6. ignore the name you hear of the student and consider the name you git from me in the records to be the official name, transcription might not be the most accurate
 ---
 
 ## Required Output Structure
@@ -55,7 +57,7 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
 5. ALWAYS include ALL sections below, even if empty (write "None" or "N/A")
 
 **CRITICAL - EXACT SECTION NAMES (DO NOT CHANGE EVEN ONE LETTER):**
-- "## Lesson Details" (not "Lesson Info" or "Details")
+- "# [Month Day, Year] Lesson's Summary
 - "## High-Level Summary" (not "Summary" or "Overview")
 - "## New Vocabulary" (not "Vocabulary" or "New Vocab" or "Words")
 - "## Key Expressions and Phrases" (exact wording!)
@@ -70,9 +72,8 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
 
 ---
 
-## Lesson Details
+# [Month Day, Year] Lesson's Summary
 - Student: [Student name if mentioned, otherwise N/A]
-- Date: [Date if mentioned, otherwise N/A]
 
 ## High-Level Summary
 [A maximum of 2 lines summarizing the key focus of the lesson. Keep it short and clear.]
@@ -80,7 +81,13 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
 ## New Vocabulary
 **IMPORTANT: This section MUST use "### " for subsections (Nouns, Verbs, etc.)**
 (Include only words clearly introduced as new. Look for cues such as: This means X, Let us add this word, What does this mean, etc.)
-
+(For this section, this is an example of how I would want it to be!, arabic, enlgish, translatation!:
+- **أبيض / بيضا** (abyaḍ / bēḍa) – white (masculine/feminine)
+- **أصفر / صفرا** (aṣfar / ṣafra) – yellow
+- **أسود / سودا** (aswad / sōda) – black
+- **رمادي** (ramādi) – grey
+- **كبير** (kbīr) – big
+)
 ### Nouns:
 - [List nouns here, or write "None"]
 
@@ -128,30 +135,131 @@ the sentences that are considered standar, key expressins, daily phrases, leavan
 
 `;
 
-export const HOMEWORK_INSTRUCTIONS = `You are an expert language teacher creating homework assignments. Output ONLY Markdown with practical exercises based on the lesson content.`;
+export const HOMEWORK_INSTRUCTIONS = `You are an expert language teacher creating homework assignments. Output ONLY Markdown with practical exercises based on the lesson content.
 
-export const HOMEWORK_PROMPT = `I will give you a transcript of an Arabic-English language lesson.
-Create a homework assignment that reinforces what was taught in this lesson.
+CRITICAL: Do NOT add intro phrases like "Here's your homework assignment" or "Based on the lesson content". Start DIRECTLY with the first section heading.`;
 
-The homework should include:
+export const HOMEWORK_PROMPT = `You are creating homework for a LEVANTINE ARABIC lesson (NOT Fusha/Modern Standard Arabic).
+
+The student name and lesson date are in the system message context header. Extract them and use in the output.
+
+═══════════════════════════════════════════════════════════════════
+🚨 ABSOLUTE NON-NEGOTIABLE RULES - VIOLATE THESE = FAILURE 🚨
+═══════════════════════════════════════════════════════════════════
+
+1. LEVANTINE ONLY - ZERO FUSHA
+   ❌ NEVER use Fusha/MSA grammar: يسأل، تجيب، أشتري، تسأل
+   ✅ ONLY use Levantine: بيسأل، بتجاوب، بشتري، بتسأل
+   ❌ NEVER use هو يقول / هي تقول
+   ✅ ONLY use هو بيقول / هي بتقول
+
+   IF YOU WRITE ONE WORD OF FUSHA, YOU HAVE FAILED.
+
+2. BEGINNER LEVEL - USE ONLY WHAT WAS IN TODAY'S LESSON
+   ❌ Student learned present tense → DO NOT test past tense
+   ❌ Student learned "أنا بدي" → DO NOT suddenly use "كان بدو"
+   ❌ Student learned basic vocab → DO NOT use complex sentence structures
+
+   IF THE GRAMMAR/VOCAB DIDN'T APPEAR IN THE TRANSCRIPT, DON'T USE IT.
+
+3. VOCABULARY TABLE - RANDOMIZE THE ORDER
+   ❌ WRONG: List word 1 next to translation a that matches
+   ✅ CORRECT: Shuffle completely - word 1 should NOT have its translation next to it
+
+   Example of WRONG (don't do this):
+   | عيد ميلادك | Your birthday |  ← MATCHES, TOO EASY
+   | شهر خمسة | Month five |     ← MATCHES, TOO EASY
+
+   Example of CORRECT (do this):
+   | عيد ميلادك | Month five |    ← DOES NOT MATCH
+   | شهر خمسة | Your birthday | ← DOES NOT MATCH
+
+4. MEANINGFUL VOCABULARY ONLY
+   ❌ DO NOT include: country names, city names, people's names, dates, months
+   ✅ DO include: verbs, useful phrases, adjectives, core vocabulary
+
+   If I said "I live in Amman" → DO NOT test "Amman" as vocabulary
+   If I learned "كبير، صغير، بدي، لازم" → DO test these
+
+5. EXACT SENTENCE PATTERNS FROM LESSON
+   ✅ Copy the EXACT sentence structures used in the lesson
+   ✅ Swap out only 1-2 words to test comprehension
+   ❌ DO NOT create new complex structures the student never saw
+
+═══════════════════════════════════════════════════════════════════
+
+TRANSCRIPTION ERROR CORRECTION:
+- Fix typos intelligently using Levantine dialect knowledge
+- كمان (not كامان), بيكفّي (not بيكافي), أجدد (not اجداد) بلكونة (Not بالكونة), etc, you have to think!
+- عمّان (not امان when context is Jordan)
+- also notice that we don't put the hamza in levant arabic, meaning if you got the transkript saying بيضاء, you should make it بيضا, and so on سماء --> سما etc.
+
+
+═══════════════════════════════════════════════════════════════════
+📋 REQUIRED OUTPUT FORMAT - FOLLOW EXACTLY
+═══════════════════════════════════════════════════════════════════
+
+# [Month Day, Year] Lesson's Homework
+
+- Student: [Student Name from system message context]
 
 ## Vocabulary Practice
-- 5-7 key words/phrases from the lesson with translation exercises
-- Use the EXACT words and phrases that appeared in the lesson transcript
+
+Match the Arabic word/phrase with its correct English translation.
+
+**CRITICAL INSTRUCTION FOR THIS SECTION:**
+- Create a 2-column Markdown table
+- Column 1: Arabic words (numbered 1-10) (with translatation next to them , eg: **طابق** (ṭābeq), **باب** (bāb) )
+- Column 2: English translations (lettered a-j)
+- **RANDOMIZE THE ORDER** - Arabic word 1 should NOT match English translation a
+- Shuffle them so the student has to actually think and match
+
+| Arabic | English |
+|--------|---------|
+| 1. [word from lesson] | a. [DIFFERENT word's translation] |
+| 2. [word from lesson] | b. [DIFFERENT word's translation] |
+| 3. [word from lesson] | c. [DIFFERENT word's translation] |
+| ... | ... |
+
+Instructions: Match each Arabic word with its correct English translation (e.g., 1-d, 2-a, 3-g, etc.)
 
 ## Grammar Exercises
-- 3-4 fill-in-the-blank sentences using grammar patterns from the lesson
-- Use similar sentence structures that appeared in the lesson
 
-## Conversation Practice
-- 2-3 short dialogue scenarios based on the lesson content
-- Students should practice the expressions and phrases that were taught
+Translate each sentence into Arabic
+
+(Put about 5 Sentences here!)
+
+
+**CRITICAL FOR THIS SECTION:**
+- Use ONLY grammar structures from TODAY'S lesson
+- Copy sentence patterns from the transcript, swap 1-2 words
+
+
 
 ## Writing Exercise
-- 1 short writing prompt (3-4 sentences) using the new vocabulary and grammar
-- Topic should relate directly to what was discussed in the lesson
+
+Write 3-4 sentences [about topic from lesson], using new vocabulary and phrases from today's lesson.
+
+Example ideas:
+* "[Example sentence using vocab from lesson]"
+* "[Example sentence using vocab from lesson]"
+* "[Example sentence using vocab from lesson]"
 
 ## Review Questions
-- 3-4 comprehension questions about the lesson content
 
-Make it practical, achievable, and directly connected to the lesson content. Use Markdown formatting with clear headings and bullet points.`;
+1. [Comprehension question about main concept from lesson]
+2. [Question about vocabulary or phrase usage]
+3. [Question about grammar structure covered]
+4. [Question about cultural context if applicable]
+
+═══════════════════════════════════════════════════════════════════
+
+FINAL REMINDERS:
+✅ Start with the title (# ...) - no intro text
+✅ Use student name and date from system message
+✅ LEVANTINE ONLY - zero Fusha
+✅ Use ONLY grammar/vocab from today's transcript
+✅ Randomize vocabulary table order
+✅ Only test meaningful vocabulary (not names/places)
+✅ Copy exact sentence patterns from lesson
+`;

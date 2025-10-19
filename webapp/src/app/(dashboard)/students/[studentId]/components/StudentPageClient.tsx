@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { Student } from '@/lib/types';
 import { StudentSessionList } from './StudentSessionList';
 import { StudentRecordingInterface } from './StudentRecordingInterface';
 import { AIChatSidebar } from './AIChatSidebar';
+import { EditStudentModal } from '@/app/(dashboard)/dashboard/components/EditStudentModal';
 
 interface StudentPageClientProps {
   student: Student;
@@ -14,7 +16,9 @@ interface StudentPageClientProps {
 }
 
 export function StudentPageClient({ student, errorMessage }: StudentPageClientProps) {
+  const router = useRouter();
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   return (
     <>
@@ -54,7 +58,10 @@ export function StudentPageClient({ student, errorMessage }: StudentPageClientPr
 
       {/* Main Content */}
       <div className="space-y-8">
-        <StudentRecordingInterface student={student} />
+        <StudentRecordingInterface
+          student={student}
+          onEditName={() => setShowEditModal(true)}
+        />
 
         <Card
           title={`${student.name}'s Sessions`}
@@ -80,6 +87,17 @@ export function StudentPageClient({ student, errorMessage }: StudentPageClientPr
         studentName={student.name}
         isOpen={isAIChatOpen}
         onClose={() => setIsAIChatOpen(false)}
+      />
+
+      {/* Edit Student Modal */}
+      <EditStudentModal
+        open={showEditModal}
+        student={student}
+        onDismiss={() => setShowEditModal(false)}
+        onStudentUpdated={() => {
+          router.refresh();
+          setShowEditModal(false);
+        }}
       />
     </>
   );

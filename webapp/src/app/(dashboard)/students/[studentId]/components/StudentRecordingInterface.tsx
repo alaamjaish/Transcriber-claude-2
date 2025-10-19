@@ -31,9 +31,10 @@ function buildTranscriptPreview(text: string, maxWords = 8): string {
 
 interface StudentRecordingInterfaceProps {
   student: Student;
+  onEditName?: () => void;
 }
 
-export function StudentRecordingInterface({ student }: StudentRecordingInterfaceProps) {
+export function StudentRecordingInterface({ student, onEditName }: StudentRecordingInterfaceProps) {
   const { fetchToken, loading: tokenLoading, error: tokenError } = useSonioxToken();
   const mixer = useAudioMixer();
   const soniox = useSonioxStream();
@@ -385,6 +386,7 @@ export function StudentRecordingInterface({ student }: StudentRecordingInterface
         onStart={handleStart}
         onStop={handleStop}
         onCancel={handleCancel}
+        onEditName={onEditName}
       />
 
       {(tokenLoading || mixer.state.requesting || savingSession) && (

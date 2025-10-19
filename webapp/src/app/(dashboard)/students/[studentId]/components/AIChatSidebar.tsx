@@ -24,11 +24,13 @@ export function AIChatSidebar({ studentId, studentName, isOpen, onClose }: AICha
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [progressSteps, setProgressSteps] = useState<string[]>([]);
   const [showCurriculumEditor, setShowCurriculumEditor] = useState(false);
   const [curriculum, setCurriculum] = useState('');
   const [isSavingCurriculum, setIsSavingCurriculum] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const progressTimerRef = useRef<NodeJS.Timeout[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -109,12 +111,59 @@ export function AIChatSidebar({ studentId, studentName, isOpen, onClose }: AICha
     }
   }
 
+  // Cleanup progress timers
+  useEffect(() => {
+    return () => {
+      progressTimerRef.current.forEach(timer => clearTimeout(timer));
+    };
+  }, []);
+
+  // Simulate progress steps
+  function simulateProgress() {
+    // Clear any existing timers
+    progressTimerRef.current.forEach(timer => clearTimeout(timer));
+    progressTimerRef.current = [];
+
+    const steps = [
+      'Analyzing your request',
+      'Searching through lessons',
+      'Generating response'
+    ];
+
+    setProgressSteps([steps[0]]);
+
+    const timer1 = setTimeout(() => {
+      setProgressSteps([steps[0], steps[1]]);
+    }, 800);
+
+    const timer2 = setTimeout(() => {
+      setProgressSteps([steps[0], steps[1], steps[2]]);
+    }, 1800);
+
+    progressTimerRef.current = [timer1, timer2];
+  }
+
+  // Handle preset query click
+  function handlePresetQuery(query: string) {
+    if (isSending) return;
+    setInputMessage(query);
+    // Auto-send after a brief delay to show the input
+    setTimeout(() => {
+      const btn = document.querySelector('[data-send-button]') as HTMLButtonElement;
+      btn?.click();
+    }, 100);
+  }
+
   async function handleSendMessage() {
     if (!inputMessage.trim() || !currentSession || isSending) return;
 
     const userMsg = inputMessage.trim();
     setInputMessage('');
     setIsSending(true);
+    setProgressSteps([]);
+
+    // Start progress simulation
+    simulateProgress();
 
     const tempUserMsg: AIChatMessage = {
       id: `temp-${Date.now()}`,
@@ -146,6 +195,9 @@ export function AIChatSidebar({ studentId, studentName, isOpen, onClose }: AICha
       setMessages(messages);
     } finally {
       setIsSending(false);
+      setProgressSteps([]);
+      progressTimerRef.current.forEach(timer => clearTimeout(timer));
+      progressTimerRef.current = [];
     }
   }
 
@@ -306,11 +358,44 @@ export function AIChatSidebar({ studentId, studentName, isOpen, onClose }: AICha
               {isSending && (
                 <div className="flex gap-4">
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-slate-600 dark:text-slate-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                     </svg>
                   </div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">Thinking...</div>
+                  <div className="flex-1 space-y-3">
+                    {/* Progress chips */}
+                    <div className="flex flex-wrap gap-2">
+                      {progressSteps.map((step, index) => (
+                        <div
+                          key={index}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 animate-fade-in"
+                        >
+                          {index === progressSteps.length - 1 ? (
+                            <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                            {step}
+                          </span>
+                          {index < progressSteps.length - 1 && (
+                            <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Skeleton loaders */}
+                    <div className="space-y-2">
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-3/4"></div>
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-5/6"></div>
+                      <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-2/3"></div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -321,6 +406,35 @@ export function AIChatSidebar({ studentId, studentName, isOpen, onClose }: AICha
           {/* Input Area */}
           <div className="border-t border-slate-200 dark:border-slate-800 px-6 py-4">
             <div className="max-w-3xl mx-auto">
+              {/* Preset buttons */}
+              {messages.length === 0 && !isSending && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handlePresetQuery('Show me the last 10 lessons')}
+                    className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+                  >
+                    Last 10 lessons
+                  </button>
+                  <button
+                    onClick={() => handlePresetQuery('Summarize what we learned this month')}
+                    className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+                  >
+                    This month
+                  </button>
+                  <button
+                    onClick={() => handlePresetQuery('Show me vocabulary from the last 3 months')}
+                    className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+                  >
+                    Vocab (3 months)
+                  </button>
+                  <button
+                    onClick={() => handlePresetQuery('Create homework from the last 5 lessons')}
+                    className="px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
+                  >
+                    Homework (last 5)
+                  </button>
+                </div>
+              )}
               <div className="flex gap-3 items-end">
                 <div className="flex-1 relative">
                   <textarea
@@ -342,6 +456,7 @@ export function AIChatSidebar({ studentId, studentName, isOpen, onClose }: AICha
                 <button
                   onClick={handleSendMessage}
                   disabled={!inputMessage.trim() || isSending}
+                  data-send-button
                   className="flex-shrink-0 rounded-xl bg-slate-900 dark:bg-slate-700 p-3 text-white hover:bg-slate-800 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -365,6 +365,8 @@ export function StudentSessionList({ studentId, studentName }: StudentSessionLis
         const dateOnly = recordedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // e.g., "Sep 30"
         const durationLabel = formatDuration(session.durationMs);
         const fileBase = session.id || "session";
+        const studentNameForFile = (session.studentName ?? studentName).replace(/[/\\?%*:|"<>]/g, '-'); // Sanitize filename
+        const dateForFile = recordedDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }); // e.g., "16-Oct"
 
         const summaryStatus = !hasTranscript
           ? "Transcript required first"
@@ -509,7 +511,7 @@ export function StudentSessionList({ studentId, studentName }: StudentSessionLis
                       </button>
                       <button
                         className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={() => downloadPdf(summary, `${fileBase}-summary.pdf`)}
+                        onClick={() => downloadPdf(summary, `${studentNameForFile}'s ${dateForFile} Summary.pdf`)}
                         disabled={!summaryReady}
                       >
                         Export PDF
@@ -562,7 +564,7 @@ export function StudentSessionList({ studentId, studentName }: StudentSessionLis
                       </button>
                       <button
                         className="rounded-md border border-slate-300 dark:border-slate-700 px-3 py-1 text-slate-700 dark:text-slate-300 transition-colors hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={() => downloadPdf(homework, `${fileBase}-homework.pdf`)}
+                        onClick={() => downloadPdf(homework, `${studentNameForFile}'s ${dateForFile} Homework.pdf`)}
                         disabled={!homeworkReady}
                       >
                         Export PDF

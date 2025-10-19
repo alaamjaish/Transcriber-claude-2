@@ -112,9 +112,10 @@ interface RecordingConsoleProps {
   onCancel: (actions: RecordingActions) => Promise<void> | void;
   title?: string;
   subtitle?: string;
+  onEditName?: () => void;
 }
 
-export function RecordingConsole({ onStart, onStop, onCancel, title = "Recording console", subtitle = "Monitor live transcription and manage session capture." }: RecordingConsoleProps) {
+export function RecordingConsole({ onStart, onStop, onCancel, title = "Recording console", subtitle = "Monitor live transcription and manage session capture.", onEditName }: RecordingConsoleProps) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const actions = useMemo<RecordingActions>(
@@ -191,7 +192,31 @@ export function RecordingConsole({ onStart, onStop, onCancel, title = "Recording
       <div className="rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 p-6 shadow-sm shadow-black/5 dark:shadow-black/20">
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+              {onEditName && (
+                <button
+                  onClick={onEditName}
+                  className="group p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors duration-200"
+                  title="Edit student name"
+                  aria-label="Edit student name"
+                >
+                  <svg
+                    className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
             <p className="text-sm text-slate-600 dark:text-slate-400">{subtitle}</p>
           </div>
           <StatusIndicator label={status.label} tone={status.tone} durationMs={state.durationMs} />

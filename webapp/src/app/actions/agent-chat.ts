@@ -6,7 +6,7 @@
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { runAgent } from '@/lib/ai/agent';
+import { runOrchestrator } from '@/lib/ai/orchestrator';
 import type { AIChatSession, AIChatMessage } from '@/lib/types';
 
 /**
@@ -59,38 +59,39 @@ export async function sendAgentMessage(sessionId: string, studentId: string, use
 
     const studentName = student?.name || 'Unknown Student';
 
-    // Fetch conversation history (last 10 messages for context)
+    // Fetch conversation history (ALL messages, will truncate to last 10 in orchestrator)
     const { data: historyData } = await supabase
       .from('ai_chat_messages')
       .select('role, content')
       .eq('session_id', sessionId)
-      .order('created_at', { ascending: true })
-      .limit(10);
+      .order('created_at', { ascending: true });
 
-    const conversationHistory = historyData || [];
+    // Rolling window: Keep only last 10 messages
+    const conversationHistory = (historyData || []).slice(-10);
 
-    // Run the intelligent agent!
+    // Run the intelligent orchestrator!
     console.log('\n💬 [USER]:', userMessage);
     console.log('📋 [CONTEXT BREAKDOWN]:');
     console.log('  - User message:', userMessage.length, 'chars');
-    console.log('  - Conversation history:', conversationHistory.length, 'messages');
+    console.log('  - Conversation history:', conversationHistory.length, 'messages (rolling window: last 10)');
     console.log('  - Student name:', studentName);
     console.log('  - Curriculum:', methodology ? `${methodology.length} chars` : 'None');
-    console.log('  - Tools available: 9 (SQL: 5, RAG: 2, Generation: 2)');
+    console.log('  - Agents available: 5 (Temporal, Vocabulary, RAG, Summary, Homework)');
 
-    const agentResult = await runAgent(studentId, user.id, userMessage, methodology, studentName, conversationHistory);
+    const agentResult = await runOrchestrator(studentId, user.id, userMessage, methodology, studentName, conversationHistory);
 
     console.log('🤖 [RESPONSE]:', agentResult.response);
     console.log('💰 [TOKENS]:', agentResult.usage);
 
-    // Token breakdown
+    // Token breakdown with Gemini 2.5 Flash pricing
     const inputTokens = agentResult.usage.inputTokens || 0;
     const outputTokens = agentResult.usage.outputTokens || 0;
     console.log('📊 [TOKEN BREAKDOWN]:');
     console.log('  - Input tokens:', inputTokens);
     console.log('  - Output tokens:', outputTokens);
     console.log('  - Total:', inputTokens + outputTokens);
-    console.log('  - Estimated cost: $' + ((inputTokens * 3 + outputTokens * 15) / 1000000).toFixed(4));
+    console.log('  - Model: Gemini 2.5 Flash (Orchestrator) + Gemini Flash-Lite (Agents)');
+    console.log('  - Estimated cost: $' + ((inputTokens * 0.075 + outputTokens * 0.30) / 1000000).toFixed(6));
 
     // Save AI response
     const { error: aiMsgError } = await supabase

@@ -101,25 +101,24 @@ export async function getAllVocabSince(
 ): Promise<string[]> {
   const supabase = await createSupabaseServerClient();
 
-  // Calculate start date
-  const startDate = new Date();
-  startDate.setMonth(startDate.getMonth() - months);
+  console.log('📖 [getAllVocabSince] Fetching vocab for last', months, 'months');
 
   // @ts-expect-error - RPC function exists in database but not in generated types
   const { data, error } = await supabase.rpc('extract_vocab_from_range', {
     target_student_id: studentId,
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: new Date().toISOString().split('T')[0],
+    months_back: months,  // ✅ Fixed: use months_back parameter
   });
 
   if (error) {
-    console.error('[getAllVocabSince] Error:', error);
+    console.error('❌ [getAllVocabSince] Error:', error);
     throw new Error(`Failed to extract vocab: ${error.message}`);
   }
 
+  console.log('✅ [getAllVocabSince] Found', (data as any[])?.length || 0, 'lessons with vocab');
+
   // Return array of vocab items (the function returns rows with vocab sections)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any)?.map((row: any) => row.vocabulary).filter(Boolean) || [];
+  return ((data as any[]) || []).map((row: any) => row.vocab_section).filter(Boolean);  // ✅ Fixed: use vocab_section
 }
 
 /**

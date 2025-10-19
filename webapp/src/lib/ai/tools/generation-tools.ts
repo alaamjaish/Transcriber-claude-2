@@ -40,28 +40,31 @@ export async function generateHomeworkFromLessons(
     })
     .join('\n\n---\n\n');
 
-  const prompt = `You are an Arabic language tutor. Based on the following lesson summaries, create a comprehensive homework assignment in Arabic.
+  const prompt = `You are an Arabic language tutor. Based on the following ${lessons.length} lesson summaries, create ONE comprehensive homework assignment in Arabic.
+
+CRITICAL: Generate a SINGLE cohesive homework assignment that covers ALL lessons below. Do NOT create separate homework for each lesson. Do NOT repeat intro phrases like "Here's your homework assignment" multiple times.
 
 The homework should:
-1. Review vocabulary from these lessons
-2. Practice grammar concepts covered
+1. Review vocabulary from ALL these lessons combined
+2. Practice grammar concepts covered across ALL lessons
 3. Include varied exercises (fill-in-the-blank, translation, sentence construction)
 4. Be appropriate for the student's level based on the lesson content
 5. Be written entirely in Arabic (except instructions if needed)
+6. Integrate content from all lessons into unified sections
 
-# Lesson Summaries
+# Lesson Summaries (${lessons.length} lessons)
 
 ${lessonContext}
 
 # Task
 
-Generate a homework assignment in markdown format with clear sections for:
-- مفردات (Vocabulary review)
-- قواعد (Grammar exercises)
-- تمارين (Practice exercises)
-- كتابة (Writing task)
+Generate ONE homework assignment in markdown format with clear sections for:
+- مفردات (Vocabulary review) - covering ALL lessons
+- قواعد (Grammar exercises) - covering ALL lessons
+- تمارين (Practice exercises) - covering ALL lessons
+- كتابة (Writing task) - based on ALL lessons
 
-Return ONLY the homework content in Arabic, formatted in markdown.`;
+Return ONLY the homework content in Arabic, formatted in markdown. NO intro phrases. Start directly with the homework sections.`;
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-5-20250929',
