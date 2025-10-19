@@ -1,0 +1,49 @@
+name: Build Electron App for Mac
+
+on:
+  workflow_dispatch:  # Manual trigger from GitHub Actions tab
+  push:
+    branches:
+      - main
+    paths:
+      - 'electron-wrapper/**'
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: electron-wrapper/package-lock.json
+
+      - name: Install dependencies
+        working-directory: electron-wrapper
+        run: npm ci
+
+      - name: Build Mac .dmg
+        working-directory: electron-wrapper
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Transcriber-Mac-dmg
+          path: electron-wrapper/dist/*.dmg
+          retention-days: 30
+
+      - name: Create Release (if tagged)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: electron-wrapper/dist/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
