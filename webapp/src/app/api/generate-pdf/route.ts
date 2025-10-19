@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
           width: 1920,
         },
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
       });
     } else {
       // Development: Use regular puppeteer (includes bundled Chrome)

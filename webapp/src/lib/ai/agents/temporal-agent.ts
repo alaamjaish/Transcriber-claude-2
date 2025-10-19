@@ -8,14 +8,6 @@ import { google } from '@ai-sdk/google';
 import { z } from 'zod';
 import * as tools from '../tools';
 
-// Type for lesson objects
-type LessonWithId = { id: string }
-
-// Extend globalThis to include our temporal storage
-declare global {
-  var __temporalAgentLessonIds: string[] | undefined;
-}
-
 /**
  * Temporal Agent Configuration
  * Specializes in date/time-based queries
@@ -37,13 +29,7 @@ IMPORTANT:
 - When you receive a date in natural language, convert it to YYYY-MM-DD format before calling tools
 - ALWAYS provide a text response after calling tools
 - If no results found, say "No lessons found for this time period"
-- If results found, present them clearly with dates and summaries
-
-CRITICAL COUNTING RULE:
-- When your tool returns lessons, COUNT them EXACTLY
-- If tool returns 4 lessons → say "4 lessons" (NOT 3, NOT 5)
-- Always match the actual count from the tool result
-- Example: Tool returns array with 5 items → "You have 5 lessons"`;
+- If results found, present them clearly with dates and summaries`;
 
 /**
  * Temporal Agent Tools
@@ -60,7 +46,7 @@ const temporalTools = {
       console.log('📅 [getRecentLessons] Retrieved', lessons.length, 'lessons');
       // Store lesson IDs for later extraction
       if (typeof globalThis !== 'undefined') {
-        globalThis.__temporalAgentLessonIds = (lessons as LessonWithId[]).map((l) => l.id);
+        (globalThis as any).__temporalAgentLessonIds = lessons.map((l: any) => l.id);
       }
       return { lessons };
     },
@@ -77,7 +63,7 @@ const temporalTools = {
       console.log('📅 [getLessonByDate] Retrieved lesson:', lesson?.id || 'none');
       // Store lesson ID for later extraction
       if (typeof globalThis !== 'undefined' && lesson) {
-        globalThis.__temporalAgentLessonIds = [lesson.id];
+        (globalThis as any).__temporalAgentLessonIds = [lesson.id];
       }
       return { lesson };
     },
@@ -95,11 +81,12 @@ const temporalTools = {
       console.log('📅 [getLessonsInDateRange] Retrieved', lessons.length, 'lessons');
       // Store lesson IDs for later extraction
       if (typeof globalThis !== 'undefined') {
-        globalThis.__temporalAgentLessonIds = (lessons as LessonWithId[]).map((l) => l.id);
+        (globalThis as any).__temporalAgentLessonIds = lessons.map((l: any) => l.id);
       }
       return { lessons };
     },
   }),
+  
 };
 
 /**
