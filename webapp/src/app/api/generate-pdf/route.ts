@@ -17,15 +17,25 @@ export async function POST(request: NextRequest) {
       <html>
       <head>
         <meta charset="UTF-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
-            font-family: system-ui, -apple-system, sans-serif;
+            font-family: 'Noto Sans', 'Noto Sans Arabic', system-ui, -apple-system, sans-serif;
             padding: 40px;
             color: #000;
             background: white;
             font-size: 14px;
             line-height: 1.6;
+            direction: ltr;
+          }
+          /* Support for Arabic text */
+          [lang="ar"], .arabic {
+            font-family: 'Noto Sans Arabic', 'Noto Sans', system-ui, sans-serif;
+            direction: rtl;
+            text-align: right;
           }
           h1 { font-size: 32px; margin: 24px 0 16px; font-weight: bold; }
           h2 { font-size: 24px; margin: 20px 0 12px; font-weight: bold; }
@@ -57,7 +67,11 @@ export async function POST(request: NextRequest) {
       const chromium = (await import('@sparticuz/chromium')).default;
 
       browser = await puppeteerCore.launch({
-        args: chromium.args,
+        args: [
+          ...chromium.args,
+          '--font-render-hinting=none',
+          '--disable-font-subpixel-positioning',
+        ],
         defaultViewport: {
           deviceScaleFactor: 1,
           hasTouch: false,
@@ -67,7 +81,7 @@ export async function POST(request: NextRequest) {
           width: 1920,
         },
         executablePath: await chromium.executablePath(),
-        headless: true,
+        headless: chromium.headless,
       });
     } else {
       // Development: Use regular puppeteer (includes bundled Chrome)
@@ -87,6 +101,9 @@ export async function POST(request: NextRequest) {
     const page = await browser.newPage();
 
     await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    // Wait for fonts to load completely
+    await page.evaluateHandle('document.fonts.ready');
 
     const pdfBuffer = await page.pdf({
       format: 'Letter',
