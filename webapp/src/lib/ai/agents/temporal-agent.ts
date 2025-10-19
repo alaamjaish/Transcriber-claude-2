@@ -8,6 +8,14 @@ import { google } from '@ai-sdk/google';
 import { z } from 'zod';
 import * as tools from '../tools';
 
+// Type for lesson objects
+type LessonWithId = { id: string }
+
+// Extend globalThis to include our temporal storage
+declare global {
+  var __temporalAgentLessonIds: string[] | undefined;
+}
+
 /**
  * Temporal Agent Configuration
  * Specializes in date/time-based queries
@@ -46,7 +54,7 @@ const temporalTools = {
       console.log('📅 [getRecentLessons] Retrieved', lessons.length, 'lessons');
       // Store lesson IDs for later extraction
       if (typeof globalThis !== 'undefined') {
-        (globalThis as any).__temporalAgentLessonIds = lessons.map((l: any) => l.id);
+        globalThis.__temporalAgentLessonIds = (lessons as LessonWithId[]).map((l) => l.id);
       }
       return { lessons };
     },
@@ -63,7 +71,7 @@ const temporalTools = {
       console.log('📅 [getLessonByDate] Retrieved lesson:', lesson?.id || 'none');
       // Store lesson ID for later extraction
       if (typeof globalThis !== 'undefined' && lesson) {
-        (globalThis as any).__temporalAgentLessonIds = [lesson.id];
+        globalThis.__temporalAgentLessonIds = [lesson.id];
       }
       return { lesson };
     },
@@ -81,7 +89,7 @@ const temporalTools = {
       console.log('📅 [getLessonsInDateRange] Retrieved', lessons.length, 'lessons');
       // Store lesson IDs for later extraction
       if (typeof globalThis !== 'undefined') {
-        (globalThis as any).__temporalAgentLessonIds = lessons.map((l: any) => l.id);
+        globalThis.__temporalAgentLessonIds = (lessons as LessonWithId[]).map((l) => l.id);
       }
       return { lessons };
     },
