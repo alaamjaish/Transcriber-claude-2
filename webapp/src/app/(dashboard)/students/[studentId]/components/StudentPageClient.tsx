@@ -92,7 +92,7 @@ export function StudentPageClient({ student, errorMessage }: StudentPageClientPr
       {/* Edit Student Modal */}
       <EditStudentModal
         open={showEditModal}
-        student={student}
+        student={{...student, totalSessions: student.totalSessions ?? 0}}
         onDismiss={() => setShowEditModal(false)}
         onStudentUpdated={() => {
           router.refresh();

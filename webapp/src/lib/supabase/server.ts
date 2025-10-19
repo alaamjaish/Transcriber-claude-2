@@ -26,26 +26,26 @@ export async function createSupabaseServerClient() {
       },
       set(name, value, options) {
         if (typeof cookieStore.set !== "function") {
-          logCookieWarning("set");
+          logCookieWarning();
           return;
         }
 
         try {
           cookieStore.set(name, value, normalizeOptions(options));
-        } catch (error) {
-          logCookieWarning("set", error);
+        } catch {
+          logCookieWarning();
         }
       },
       remove(name, options) {
         if (typeof cookieStore.delete !== "function") {
-          logCookieWarning("delete");
+          logCookieWarning();
           return;
         }
 
         try {
           cookieStore.delete(name, normalizeOptions(options));
-        } catch (error) {
-          logCookieWarning("delete", error);
+        } catch {
+          logCookieWarning();
         }
       },
     },
@@ -57,7 +57,7 @@ function normalizeOptions(options?: CookieOptions) {
   return { path: "/", ...options } satisfies CookieOptions;
 }
 
-function logCookieWarning(action: "set" | "delete", error?: unknown) {
+function logCookieWarning() {
   // Disable warnings - this is expected behavior in Server Components
   return;
 

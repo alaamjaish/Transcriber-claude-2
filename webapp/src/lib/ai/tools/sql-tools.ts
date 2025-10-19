@@ -5,6 +5,11 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
+// Type for vocab extraction result rows
+interface VocabRow {
+  vocab_section: string;
+}
+
 export interface Lesson {
   id: string;
   student_id: string;
@@ -114,11 +119,10 @@ export async function getAllVocabSince(
     throw new Error(`Failed to extract vocab: ${error.message}`);
   }
 
-  console.log('✅ [getAllVocabSince] Found', (data as any[])?.length || 0, 'lessons with vocab');
+  console.log('✅ [getAllVocabSince] Found', (data as VocabRow[])?.length || 0, 'lessons with vocab');
 
   // Return array of vocab items (the function returns rows with vocab sections)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return ((data as any[]) || []).map((row: any) => row.vocab_section).filter(Boolean);  // ✅ Fixed: use vocab_section
+  return ((data as VocabRow[]) || []).map((row) => row.vocab_section).filter(Boolean);  // ✅ Fixed: use vocab_section
 }
 
 /**

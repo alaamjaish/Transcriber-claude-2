@@ -26,7 +26,7 @@ export async function sendAgentMessage(sessionId: string, studentId: string, use
     }
 
     // Save user message
-    const { data: userMsg, error: userMsgError } = await supabase
+    const { error: userMsgError } = await supabase
       .from('ai_chat_messages')
       .insert({
         session_id: sessionId,

@@ -12,6 +12,23 @@ import { runSummaryAgent } from './agents/summary-agent';
 import { runHomeworkAgent } from './agents/homework-agent';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
+// Type definitions for agent results
+// Using unknown for maximum compatibility with AI SDK return types
+type AgentResultType = {
+  toolCalls: unknown[];
+  result?: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+}
+
+// Extend globalThis to include temporal agent storage
+declare global {
+  var __temporalAgentLessonIds: string[] | undefined;
+}
+
 /**
  * Fetch lightweight lesson index for student awareness
  * Returns minimal data: id + date only
@@ -115,16 +132,16 @@ function extractTemporalQuery(userQuery: string): string {
  * Helper function to extract lesson IDs from agent tool results
  * Parses through the AI SDK's step results to find lesson data
  */
-function extractLessonIdsFromAgentResult(agentResult: { toolCalls: any[] }): string[] {
+function extractLessonIdsFromAgentResult(agentResult: AgentResultType): string[] {
   console.log('🔍 [extractLessonIds] Analyzing agent result...');
   console.log('🔍 [extractLessonIds] toolCalls array length:', agentResult.toolCalls?.length || 0);
 
   // FIRST: Try to get lesson IDs from global store (set by temporal agent tools)
-  if (typeof globalThis !== 'undefined' && (globalThis as any).__temporalAgentLessonIds) {
-    const lessonIds = (globalThis as any).__temporalAgentLessonIds;
+  if (typeof globalThis !== 'undefined' && globalThis.__temporalAgentLessonIds) {
+    const lessonIds = globalThis.__temporalAgentLessonIds;
     console.log('✅ [extractLessonIds] Found', lessonIds.length, 'lesson IDs from global store:', lessonIds);
     // Clear the global store
-    delete (globalThis as any).__temporalAgentLessonIds;
+    delete globalThis.__temporalAgentLessonIds;
     return lessonIds;
   }
 
@@ -134,25 +151,27 @@ function extractLessonIdsFromAgentResult(agentResult: { toolCalls: any[] }): str
   // Parse through tool calls to find lessons
   if (agentResult.toolCalls && Array.isArray(agentResult.toolCalls)) {
     for (let i = 0; i < agentResult.toolCalls.length; i++) {
-      const step = agentResult.toolCalls[i];
+      const step = agentResult.toolCalls[i] as Record<string, unknown>;
       console.log(`🔍 [extractLessonIds] Step ${i}:`, JSON.stringify(step, null, 2));
 
-      if (step.toolResults) {
+      if (step.toolResults && Array.isArray(step.toolResults)) {
         console.log(`🔍 [extractLessonIds] Step ${i} has toolResults, count:`, step.toolResults.length);
-        for (const toolResult of step.toolResults) {
+        for (const toolResult of step.toolResults as Array<Record<string, unknown>>) {
           console.log('🔍 [extractLessonIds] Tool result:', JSON.stringify(toolResult, null, 2));
           // Check for lessons in tool result
-          const result = toolResult.result;
+          const result = toolResult.result as Record<string, unknown> | undefined;
           if (result) {
             // Handle single lesson (getLessonByDate)
-            if (result.lesson && result.lesson.id) {
-              console.log('✅ [extractLessonIds] Found single lesson:', result.lesson.id);
-              lessonIds.push(result.lesson.id);
+            const lesson = result.lesson as { id: string } | undefined;
+            if (lesson && lesson.id) {
+              console.log('✅ [extractLessonIds] Found single lesson:', lesson.id);
+              lessonIds.push(lesson.id);
             }
             // Handle multiple lessons (getRecentLessons, getLessonsInDateRange)
-            if (result.lessons && Array.isArray(result.lessons)) {
-              console.log('✅ [extractLessonIds] Found', result.lessons.length, 'lessons');
-              lessonIds.push(...result.lessons.map((l: any) => l.id).filter(Boolean));
+            const lessons = result.lessons as Array<{ id: string }> | undefined;
+            if (lessons && Array.isArray(lessons)) {
+              console.log('✅ [extractLessonIds] Found', lessons.length, 'lessons');
+              lessonIds.push(...lessons.map((l) => l.id).filter(Boolean));
             }
           } else {
             console.warn('⚠️ [extractLessonIds] Tool result has no result property');

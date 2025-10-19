@@ -37,6 +37,7 @@ export function AIChatSidebar({ studentId, studentName, isOpen, onClose }: AICha
       loadSessions();
       loadCurriculum();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, studentId]);
 
   useEffect(() => {

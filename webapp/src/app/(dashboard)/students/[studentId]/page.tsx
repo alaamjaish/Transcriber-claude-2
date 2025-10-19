@@ -1,12 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { loadSessionsForStudent, loadStudentById } from "@/lib/data-loaders";
 import type { Session, Student } from "@/lib/types";
 
-import { StudentSessionList } from "./components/StudentSessionList";
-import { StudentRecordingInterface } from "./components/StudentRecordingInterface";
 import { SessionListProvider } from "@/app/(dashboard)/recordings/components/SessionListProvider";
 import { StudentPageClient } from "./components/StudentPageClient";
 
