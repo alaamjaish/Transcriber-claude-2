@@ -33,6 +33,7 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
      - كمان  not كامان
      - also notice that we don't put the hamza in levant arabic, meaning if you got the transkript saying بيضاء, you should make it بيضا, and so on سماء --> سما etc.
      - some examples may include the names of the cities, and contries, try to make it make sense, like a use says Amman, and you see in the transcrript i live in امان in jordan, you should know for sure they mean عمّان!
+     - Numbers: The transcription may write احدى عشر, but in Levantine we write احدا عش. Similarly: اتنا عش (12), تلات طعش (13), اربع طعش (14) - NOT اربعة عشر like in Fusha. Always use the Levantine forms.
      - HAVE CONTEXTUAL AWARNESS, USE YOUR Intellegence to make sense of things!
    - Always review the transcript for such errors and normalize them to correct Levantine forms.
 
@@ -193,6 +194,7 @@ TRANSCRIPTION ERROR CORRECTION:
 - كمان (not كامان), بيكفّي (not بيكافي), أجدد (not اجداد) بلكونة (Not بالكونة), etc, you have to think!
 - عمّان (not امان when context is Jordan)
 - also notice that we don't put the hamza in levant arabic, meaning if you got the transkript saying بيضاء, you should make it بيضا, and so on سماء --> سما etc.
+- Numbers: The transcription may write احدى عشر, but in Levantine we write احدا عش. Similarly: اتنا عش (12), تلات طعش (13), اربع طعش (14) - NOT اربعة عشر like in Fusha. Always use the Levantine forms.
 
 
 ═══════════════════════════════════════════════════════════════════
