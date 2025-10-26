@@ -11,6 +11,12 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
 
 ## CRITICAL INSTRUCTIONS
 
+**⚠️ DATE INSTRUCTION - READ FIRST:**
+- You will receive a "Lesson Date" in the system message context header
+- Use ONLY that provided lesson date for the summary heading
+- IGNORE your system's current date/time
+- The lesson date is the authoritative date for this session
+
 1. Distinguish Between Explained vs. Mentioned Concepts
    - This is the most important rule.
    - Your summary must clearly differentiate between concepts that were the primary focus of teaching with detailed explanation, examples, or practice and topics that were only mentioned briefly or addressed as side questions.
