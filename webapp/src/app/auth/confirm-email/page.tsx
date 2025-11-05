@@ -27,20 +27,20 @@ export default function ConfirmEmailPage() {
             Check your email
           </h1>
           <p className="mt-3 text-base text-slate-600 dark:text-slate-400">
-            We've sent you a confirmation link. Please check your inbox and click the link to verify your account.
+            We&apos;ve sent you a confirmation link. Please check your inbox and click the link to verify your account.
           </p>
         </div>
 
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/50 p-6">
           <p className="text-sm text-slate-600 dark:text-slate-400">
             <strong className="text-slate-900 dark:text-slate-100">Important:</strong> The confirmation link will expire in 24 hours.
-            After confirming your email, you'll be able to sign in to your account.
+            After confirming your email, you&apos;ll be able to sign in to your account.
           </p>
         </div>
 
         <div className="space-y-3 pt-4">
           <p className="text-sm text-slate-500 dark:text-slate-500">
-            Didn't receive the email? Check your spam folder.
+            Didn&apos;t receive the email? Check your spam folder.
           </p>
           <Link
             href="/auth/sign-in"
