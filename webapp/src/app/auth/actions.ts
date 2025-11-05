@@ -36,6 +36,8 @@ export async function signUpAction(_: AuthFormState, formData: FormData): Promis
     return { message: "Email and password are required.", messageType: "error" };
   }
 
+  let needsEmailConfirmation = false;
+
   try {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.signUp({
@@ -52,13 +54,18 @@ export async function signUpAction(_: AuthFormState, formData: FormData): Promis
       return { message: error.message, messageType: "error" };
     }
 
-    // If no session was created, email confirmation is required
+    // Check if email confirmation is required
     if (!data.session) {
-      redirect("/auth/confirm-email");
+      needsEmailConfirmation = true;
     }
   } catch (error) {
     console.error("signUpAction", error);
     return { message: "Unable to sign up. Check configuration.", messageType: "error" };
+  }
+
+  // Redirect after try-catch to avoid catching the redirect throw
+  if (needsEmailConfirmation) {
+    redirect("/auth/confirm-email");
   }
 
   // If a session was created (email confirmation disabled), go to dashboard
