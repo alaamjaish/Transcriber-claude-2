@@ -78,7 +78,7 @@ export function UserMenu({ userEmail, onSignOut }: UserMenuProps) {
           {onSignOut && (
             <div className="p-2">
               <form action={onSignOut}>
-                <SignOutButton onClick={() => setIsOpen(false)} />
+                <SignOutButton />
               </form>
             </div>
           )}
@@ -88,13 +88,12 @@ export function UserMenu({ userEmail, onSignOut }: UserMenuProps) {
   );
 }
 
-function SignOutButton({ onClick }: { onClick: () => void }) {
+function SignOutButton() {
   const { pending } = useFormStatus();
 
   return (
     <button
       type="submit"
-      onClick={onClick}
       className="w-full text-left rounded-md px-3 py-2 text-sm text-slate-900 dark:text-slate-100 transition hover:bg-slate-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
       disabled={pending}
     >
