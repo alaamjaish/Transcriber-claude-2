@@ -114,7 +114,7 @@ export function DemoSection() {
             </svg>
           </div>
           <h3 className="text-xl font-semibold text-amber-900 dark:text-amber-100 mb-2">
-            You've used your 3 free trials for today!
+            You&apos;ve used your 3 free trials for today!
           </h3>
           <p className="text-sm text-amber-700 dark:text-amber-300 mb-6">
             Try again tomorrow at {resetTime} or sign up for unlimited access
