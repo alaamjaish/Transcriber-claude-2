@@ -250,6 +250,33 @@ export type Database = {
           },
         ]
       }
+      demo_trials: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string
+          last_trial_date: string
+          trial_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address: string
+          last_trial_date?: string
+          trial_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string
+          last_trial_date?: string
+          trial_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
