@@ -33,8 +33,10 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
       try {
         actions.setConnecting();
 
-        // Get Soniox token
-        const tokenResponse = await fetch("/api/soniox/token");
+        // Get Soniox token (using public demo endpoint)
+        const tokenResponse = await fetch("/api/demo/soniox-token", {
+          method: "POST",
+        });
         if (!tokenResponse.ok) {
           throw new Error("Failed to get transcription token");
         }
