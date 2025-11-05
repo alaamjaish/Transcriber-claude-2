@@ -11,13 +11,18 @@ export default function SignInPage() {
   const [state, formAction] = useFormState(signInAction, initialAuthState);
 
   return (
-    <form action={formAction} className="space-y-6">
+    <>
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">Welcome back</h1>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Sign in to your workspace</p>
+      </div>
+      <form action={formAction} className="space-y-6">
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">Email</label>
         <input
           type="email"
           name="email"
-          placeholder="teacher@school.com"
+          placeholder="you@example.com"
           className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/80 px-4 py-3 text-sm text-slate-900 dark:text-slate-100 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
           required
         />
@@ -50,5 +55,6 @@ export default function SignInPage() {
         New here? <Link href="/auth/sign-up" className="text-sky-600 dark:text-sky-400 hover:text-sky-500 dark:hover:text-sky-300">Create an account</Link>
       </p>
     </form>
+    </>
   );
 }

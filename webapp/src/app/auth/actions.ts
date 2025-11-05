@@ -52,14 +52,16 @@ export async function signUpAction(_: AuthFormState, formData: FormData): Promis
       return { message: error.message, messageType: "error" };
     }
 
+    // If no session was created, email confirmation is required
     if (!data.session) {
-      return { message: "Check your inbox to confirm your account before signing in.", messageType: "success" };
+      redirect("/auth/confirm-email");
     }
   } catch (error) {
     console.error("signUpAction", error);
     return { message: "Unable to sign up. Check configuration.", messageType: "error" };
   }
 
+  // If a session was created (email confirmation disabled), go to dashboard
   redirect("/dashboard");
 }
 
