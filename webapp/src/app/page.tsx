@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { DemoSection } from "@/components/demo/DemoSection";
 
 const sections = [
   {
@@ -59,6 +60,19 @@ export default async function Home() {
           </Link>
         </div>
       </header>
+
+      {/* Demo Section */}
+      <section className="py-12">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
+            Experience AI-Powered Transcription
+          </h2>
+          <p className="text-base text-slate-600 dark:text-slate-400">
+            Try our demo - record up to 3 minutes and watch your words appear in real-time!
+          </p>
+        </div>
+        <DemoSection />
+      </section>
 
       <section className="grid gap-6 md:grid-cols-3">
         {sections.map((section) => (
