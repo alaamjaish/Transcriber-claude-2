@@ -11,8 +11,19 @@ export interface RateLimitResult {
 /**
  * Check if an IP address is allowed to perform a demo trial
  * Returns the number of remaining trials and whether the request is allowed
+ *
+ * ⚠️ TESTING MODE: Rate limiting is DISABLED - unlimited trials allowed
  */
 export async function checkDemoRateLimit(ipAddress: string): Promise<RateLimitResult> {
+  // TESTING MODE: Always allow unlimited trials
+  return {
+    allowed: true,
+    remaining: 999, // Show high number for testing
+    resetDate: getNextDayReset(),
+  };
+
+  /* RATE LIMITING DISABLED FOR TESTING - Original code below:
+
   const supabase = await createSupabaseServerClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -59,12 +70,20 @@ export async function checkDemoRateLimit(ipAddress: string): Promise<RateLimitRe
     remaining: MAX_TRIALS_PER_DAY - currentCount - 1,
     resetDate: getNextDayReset(),
   };
+  */
 }
 
 /**
  * Increment the trial count for an IP address
+ *
+ * ⚠️ TESTING MODE: Trial counting is DISABLED - no database writes
  */
 export async function incrementDemoTrialCount(ipAddress: string): Promise<void> {
+  // TESTING MODE: Do nothing, don't track trials
+  return;
+
+  /* TRIAL TRACKING DISABLED FOR TESTING - Original code below:
+
   const supabase = await createSupabaseServerClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -95,6 +114,7 @@ export async function incrementDemoTrialCount(ipAddress: string): Promise<void> 
         last_trial_date: today,
       });
   }
+  */
 }
 
 /**
