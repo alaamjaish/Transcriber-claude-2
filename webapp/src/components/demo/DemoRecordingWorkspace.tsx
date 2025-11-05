@@ -20,7 +20,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
   const [error, setError] = useState<string | null>(null);
 
   const sonioxStream = useSonioxStream();
-  const { requestStream, stopAllStreams } = useAudioMixer();
+  const audioMixer = useAudioMixer();
 
   const recordingStartTimeRef = useRef<number>(0);
   const maxTimeTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -31,8 +31,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
       actionsRef.current = actions;
 
       try {
-        // Get audio stream
-        const stream = await requestStream();
+        actions.setConnecting();
 
         // Get Soniox token
         const tokenResponse = await fetch("/api/soniox/token");
@@ -42,7 +41,14 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
 
         const { apiKey, websocketUrl } = await tokenResponse.json();
 
-        actions.setConnecting();
+        // Start audio mixer to get stream
+        const stream = await audioMixer.start({
+          includeSystemAudio: false,
+          micGain: 1,
+          systemGain: 1,
+        });
+
+        recordingStartTimeRef.current = Date.now();
 
         // Start Soniox stream
         await sonioxStream.start({
@@ -52,14 +58,12 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
           actions,
         });
 
-        recordingStartTimeRef.current = Date.now();
-
         // Set 3-minute auto-stop timer
         maxTimeTimerRef.current = setTimeout(() => {
           if (actionsRef.current) {
             // Auto-stop when reaching 3 minutes
             sonioxStream.stop();
-            stopAllStreams();
+            audioMixer.stop();
           }
         }, MAX_RECORDING_TIME_MS);
 
@@ -68,7 +72,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
         throw new Error(message);
       }
     },
-    [requestStream, sonioxStream, stopAllStreams]
+    [audioMixer, sonioxStream]
   );
 
   const handleStop = useCallback(
@@ -80,7 +84,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
       }
 
       sonioxStream.stop();
-      stopAllStreams();
+      audioMixer.stop();
 
       setIsProcessing(true);
       setTranscript(result.transcript);
@@ -107,7 +111,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
         setIsProcessing(false);
       }
     },
-    [sonioxStream, stopAllStreams]
+    [sonioxStream, audioMixer]
   );
 
   const handleCancel = useCallback(() => {
@@ -118,8 +122,8 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
     }
 
     sonioxStream.stop();
-    stopAllStreams();
-  }, [sonioxStream, stopAllStreams]);
+    audioMixer.stop();
+  }, [sonioxStream, audioMixer]);
 
   const handleReset = useCallback(() => {
     setSummary(null);
