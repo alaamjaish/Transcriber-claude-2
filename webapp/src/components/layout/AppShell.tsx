@@ -47,11 +47,16 @@ export function AppShell({
             {subtitle ? <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{subtitle}</p> : null}
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-slate-400">
-            <div className="rounded-full border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 px-4 py-2">
+            <div className="rounded-full border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 px-4 py-2 max-w-xs">
               {userEmail ? (
                 <>
                   <span className="text-slate-500 dark:text-slate-500">Signed in as</span>
-                  <span className="ml-2 text-slate-900 dark:text-slate-100">{userEmail}</span>
+                  <span
+                    className="ml-2 text-slate-900 dark:text-slate-100 inline-block max-w-[180px] truncate align-bottom"
+                    title={userEmail}
+                  >
+                    {userEmail}
+                  </span>
                 </>
               ) : (
                 <span className="text-slate-600 dark:text-slate-400">Demo mode</span>

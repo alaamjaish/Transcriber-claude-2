@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    // Get initial theme from localStorage or default to dark
+    // Get initial theme from localStorage or default to light
     const stored = localStorage.getItem("theme") as "light" | "dark" | null;
-    const initialTheme = stored || "dark";
+    const initialTheme = stored || "light";
     setTheme(initialTheme);
 
     // Apply theme class to document
