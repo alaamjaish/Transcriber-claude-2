@@ -1,7 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { DemoRecorder } from "@/components/demo/DemoRecorder";
+import { DemoSection } from "@/components/demo/DemoSection";
 
 const sections = [
   {
@@ -68,10 +68,10 @@ export default async function Home() {
             Experience AI-Powered Transcription
           </h2>
           <p className="text-base text-slate-600 dark:text-slate-400">
-            Try our demo - record up to 3 minutes and see the AI generate a summary in real-time
+            Try our demo - record up to 3 minutes and watch your words appear in real-time!
           </p>
         </div>
-        <DemoRecorder />
+        <DemoSection />
       </section>
 
       <section className="grid gap-6 md:grid-cols-3">

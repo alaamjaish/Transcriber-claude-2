@@ -103,8 +103,12 @@ export function DemoRecorder() {
     try {
       const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
 
-      // Check if recording is too short (less than 1 second)
-      const durationSeconds = elapsedTime / 1000;
+      // Calculate actual duration from start time
+      const actualDuration = Date.now() - startTimeRef.current;
+      const durationSeconds = actualDuration / 1000;
+
+      console.log('Recording duration:', durationSeconds, 'seconds');
+
       if (durationSeconds < 1) {
         setError("Recording is too short. Please record at least 1 second of audio.");
         setState("error");
