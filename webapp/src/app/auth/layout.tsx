@@ -25,8 +25,6 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         <Link href="/" className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-500">
           Transcriber Studio
         </Link>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">Welcome back</h1>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Sign in or create an account to access your workspace.</p>
       </header>
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-8 shadow-lg shadow-black/10 dark:shadow-black/20">
         {children}
