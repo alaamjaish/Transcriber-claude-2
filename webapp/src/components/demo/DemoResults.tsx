@@ -75,9 +75,20 @@ export function DemoResults({ transcript, summary, remaining, onReset }: DemoRes
           Your audio has been transcribed and summarized by AI
         </p>
         {remaining > 0 && (
-          <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-            You have {remaining} {remaining === 1 ? "trial" : "trials"} remaining today
-          </p>
+          <>
+            <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+              You have {remaining} {remaining === 1 ? "trial" : "trials"} remaining today
+            </p>
+            <button
+              onClick={onReset}
+              className="mt-4 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg inline-flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Do Another Demo
+            </button>
+          </>
         )}
       </div>
 
@@ -143,12 +154,14 @@ export function DemoResults({ transcript, summary, remaining, onReset }: DemoRes
           >
             Create Free Account
           </Link>
-          <button
-            onClick={onReset}
-            className="px-8 py-3 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-          >
-            Try Another Demo
-          </button>
+          {remaining > 0 && (
+            <button
+              onClick={onReset}
+              className="px-8 py-3 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+            >
+              Try Another Demo
+            </button>
+          )}
         </div>
         <p className="mt-4 text-xs text-slate-500 dark:text-slate-500">
           No credit card required • Free forever

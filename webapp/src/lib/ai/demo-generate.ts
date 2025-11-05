@@ -7,11 +7,18 @@ const DEMO_MODEL = 'google/gemini-2.5-flash';
 // General-purpose prompt for demo recordings
 const DEMO_SUMMARY_INSTRUCTIONS = `You are an AI assistant that creates clear, well-organized summaries of recorded conversations, meetings, lessons, or any other spoken content.
 
-Your task is to analyze the transcript and create a comprehensive but concise summary that captures the key information.`;
+Your task is to analyze the transcript and create a helpful summary. IMPORTANT: This is a demo, so ALWAYS generate a friendly, helpful summary even if the transcript is very short, contains only filler words, or seems incomplete. Never refuse to create a summary.`;
 
 const DEMO_SUMMARY_PROMPT = `Create a clear and well-structured summary of the following recording.
 
-Your summary should:
+IMPORTANT: This is a DEMO, so you MUST always generate a summary no matter what. Even if the transcript is very short, contains only filler words like "um", "uh", or is just a few words, create a friendly summary.
+
+For short or minimal transcripts:
+- Acknowledge what was said in a friendly way
+- Create a brief, encouraging summary
+- Example: If transcript is just "hello" or "um um", create a summary like "## Demo Recording\n\nThis was a brief test recording. The speaker said a few words, which demonstrates how the transcription system captures audio in real-time."
+
+For substantial transcripts, your summary should:
 1. Identify the main topics or themes discussed
 2. Highlight key points, decisions, or important information
 3. Organize the information in a logical, easy-to-understand format

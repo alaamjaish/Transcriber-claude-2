@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { DemoSection } from "@/components/demo/DemoSection";
 
 const sections = [
   {
@@ -59,6 +60,11 @@ export default async function Home() {
           </Link>
         </div>
       </header>
+
+      {/* Demo Section */}
+      <section className="py-12">
+        <DemoSection />
+      </section>
 
       <section className="grid gap-6 md:grid-cols-3">
         {sections.map((section) => (
