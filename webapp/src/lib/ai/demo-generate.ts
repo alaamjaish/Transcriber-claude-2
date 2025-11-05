@@ -1,5 +1,8 @@
 import { simpleChatCompletion } from "@/lib/ai/openrouter";
-import { AI_MODELS, MODEL_SETTINGS } from "@/lib/ai/config";
+import { MODEL_SETTINGS } from "@/lib/ai/config";
+
+// Use Gemini Flash 2.0 (free tier) for demo - blazing fast and free!
+const DEMO_MODEL = 'google/gemini-2.0-flash-exp:free';
 
 // General-purpose prompt for demo recordings
 const DEMO_SUMMARY_INSTRUCTIONS = `You are an AI assistant that creates clear, well-organized summaries of recorded conversations, meetings, lessons, or any other spoken content.
@@ -20,6 +23,11 @@ Format your summary using Markdown with appropriate headings (##) and bullet poi
 /**
  * Generate a general-purpose summary for demo recordings
  * This is designed to work with any type of content (lessons, meetings, conversations, etc.)
+ *
+ * Uses Gemini Flash 2.0 (free tier) for:
+ * - Blazing fast responses (great for demos!)
+ * - Zero cost (free tier)
+ * - High quality summaries
  */
 export async function generateDemoSummary(transcript: string): Promise<string> {
   const content = transcript?.trim();
@@ -41,7 +49,7 @@ export async function generateDemoSummary(transcript: string): Promise<string> {
   const userPrompt = `${DEMO_SUMMARY_PROMPT}\n\n---\nTRANSCRIPT:\n${content}`;
 
   return simpleChatCompletion({
-    model: AI_MODELS.summary, // Use same model as regular summaries
+    model: DEMO_MODEL, // Gemini Flash 2.0 - free and blazing fast! 🚀
     systemMessage: systemInstruction,
     userMessage: userPrompt,
     temperature: MODEL_SETTINGS.summary.temperature,
