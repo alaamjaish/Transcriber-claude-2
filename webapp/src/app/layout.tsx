@@ -3,8 +3,8 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Transcriber Studio",
-  description: "Professional workspace for recording, transcription, and lesson artifacts.",
+  title: "استوديو النسخ الصوتي | Transcriber Studio",
+  description: "منصة احترافية للتسجيل والنسخ الصوتي وإنشاء ملخصات الدروس بالذكاء الاصطناعي",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -28,9 +28,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body suppressHydrationWarning className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
+      <body suppressHydrationWarning className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased font-arabic">
         {children}
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster position="top-left" richColors closeButton />
       </body>
     </html>
   );

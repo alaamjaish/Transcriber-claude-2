@@ -30,6 +30,13 @@ body {
   min-height: 100vh;
 }
 
+.font-arabic {
+  font-family: 'SF Arabic', 'Segoe UI Arabic', 'Noto Sans Arabic', 'Tahoma', 'Arial', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'liga' 1, 'calt' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 a {
   color: inherit;
 }
