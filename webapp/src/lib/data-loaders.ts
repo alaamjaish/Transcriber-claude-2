@@ -169,8 +169,7 @@ export async function loadSessionsForStudent(studentId: string): Promise<Session
     .select("id, student_id, timestamp, duration_ms, transcript, summary_md, homework_md, generation_status, generation_started_at, created_at")
     .eq("owner_user_id", userId)
     .eq("student_id", studentId)
-    .order("timestamp", { ascending: false })
-    .limit(PAGE_SIZE);
+    .order("timestamp", { ascending: false });
 
   if (error) {
     throw error;
