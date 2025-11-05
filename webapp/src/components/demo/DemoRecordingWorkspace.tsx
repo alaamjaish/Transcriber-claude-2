@@ -19,7 +19,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
   const [transcript, setTranscript] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { startStream, stopStream } = useSonioxStream();
+  const sonioxStream = useSonioxStream();
   const { requestStream, stopAllStreams } = useAudioMixer();
 
   const recordingStartTimeRef = useRef<number>(0);
@@ -45,7 +45,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
         actions.setConnecting();
 
         // Start Soniox stream
-        await startStream({
+        await sonioxStream.start({
           apiKey,
           websocketUrl,
           stream,
@@ -58,7 +58,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
         maxTimeTimerRef.current = setTimeout(() => {
           if (actionsRef.current) {
             // Auto-stop when reaching 3 minutes
-            stopStream();
+            sonioxStream.stop();
             stopAllStreams();
           }
         }, MAX_RECORDING_TIME_MS);
@@ -68,7 +68,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
         throw new Error(message);
       }
     },
-    [requestStream, startStream, stopStream, stopAllStreams]
+    [requestStream, sonioxStream, stopAllStreams]
   );
 
   const handleStop = useCallback(
@@ -79,7 +79,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
         maxTimeTimerRef.current = null;
       }
 
-      stopStream();
+      sonioxStream.stop();
       stopAllStreams();
 
       setIsProcessing(true);
@@ -107,7 +107,7 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
         setIsProcessing(false);
       }
     },
-    [stopStream, stopAllStreams]
+    [sonioxStream, stopAllStreams]
   );
 
   const handleCancel = useCallback(() => {
@@ -117,9 +117,9 @@ export function DemoRecordingWorkspace({ remaining, onComplete }: DemoRecordingW
       maxTimeTimerRef.current = null;
     }
 
-    stopStream();
+    sonioxStream.stop();
     stopAllStreams();
-  }, [stopStream, stopAllStreams]);
+  }, [sonioxStream, stopAllStreams]);
 
   const handleReset = useCallback(() => {
     setSummary(null);
