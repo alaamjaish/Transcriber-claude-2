@@ -254,6 +254,12 @@ export function useSonioxStream() {
   ): Promise<void> => {
     const MAX_ATTEMPTS = state.reconnectMaxAttempts;
 
+    // Prevent multiple simultaneous reconnection attempts
+    if (attempt === 1 && isReconnectingRef.current) {
+      console.log("[useSonioxStream] Reconnection already in progress, skipping");
+      return;
+    }
+
     // Give up after max attempts
     if (attempt > MAX_ATTEMPTS) {
       console.error(`[useSonioxStream] Reconnection failed after ${MAX_ATTEMPTS} attempts`);
@@ -271,12 +277,12 @@ export function useSonioxStream() {
         error: "Connection lost after multiple retry attempts"
       }));
 
-      // Stop WebSocket but DON'T reset start time (preserve for localStorage)
+      // Properly clean up the old client
       if (clientRef.current) {
         try {
-          clientRef.current.stop();
+          clientRef.current.cancel(); // Use cancel() instead of stop() for immediate termination
         } catch (err) {
-          console.warn("[useSonioxStream] Error stopping client during failed reconnect", err);
+          console.warn("[useSonioxStream] Error canceling client during failed reconnect", err);
         }
         clientRef.current = null;
       }
@@ -318,6 +324,17 @@ export function useSonioxStream() {
     }
 
     try {
+      // Properly clean up the old client BEFORE creating a new one
+      if (clientRef.current) {
+        console.log("[useSonioxStream] Cleaning up old client before reconnect");
+        try {
+          clientRef.current.cancel(); // Use cancel() for immediate termination
+        } catch (err) {
+          console.warn("[useSonioxStream] Error cleaning up old client", err);
+        }
+        clientRef.current = null;
+      }
+
       // Fetch NEW token (old one might be stale)
       console.log("[useSonioxStream] Fetching fresh Soniox token for reconnect");
       const tokenResponse = await fetch("/api/soniox/token", { method: "POST" });
@@ -376,9 +393,20 @@ export function useSonioxStream() {
         onError: (status: string, message: string) => {
           console.error("[useSonioxStream] Error during reconnect", { status, message });
 
+          // Check if we're still supposed to be reconnecting
+          if (!isReconnectingRef.current) {
+            console.log("[useSonioxStream] Ignoring error during aborted reconnection");
+            return;
+          }
+
           // Recursive: retry again if it's still recoverable
           if (isRecoverableError(status, message)) {
-            reconnect(attempt + 1);
+            // Add a delay before recursive retry to prevent rapid-fire
+            setTimeout(() => {
+              if (isReconnectingRef.current) {
+                reconnect(attempt + 1);
+              }
+            }, 500);
           } else {
             // Non-recoverable error during reconnect - give up
             const errorMessage = message || status || "Stream error during reconnection";
@@ -416,8 +444,19 @@ export function useSonioxStream() {
     } catch (error) {
       console.error(`[useSonioxStream] Reconnect attempt ${attempt} failed`, error);
 
-      // Retry with next attempt
-      reconnect(attempt + 1);
+      // Check if we should still retry (user might have stopped recording)
+      if (!isReconnectingRef.current) {
+        console.log("[useSonioxStream] Reconnection aborted by user");
+        return;
+      }
+
+      // Schedule retry with a small additional delay to prevent rapid-fire retries
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Double-check we're still reconnecting after the delay
+      if (isReconnectingRef.current) {
+        reconnect(attempt + 1);
+      }
     }
   }, [processTokens, stop, state.reconnectMaxAttempts]);
 
