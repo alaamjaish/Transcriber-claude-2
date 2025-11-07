@@ -30,6 +30,9 @@ Analyze the provided lesson transcript. The transcript is a mix of English and s
    - Examples:
      - enough -> بيكفّي  not بيكافي or بكافي
      - newer -> أجدد  not اجداد
+     - امبارح not أمبارح
+     - شي not شيء
+     - سما not سماء
      - كمان  not كامان
      - also notice that we don't put the hamza in levant arabic, meaning if you got the transkript saying بيضاء, you should make it بيضا, and so on سماء --> سما etc.
      - some examples may include the names of the cities, and contries, try to make it make sense, like a use says Amman, and you see in the transcrript i live in امان in jordan, you should know for sure they mean عمّان!
@@ -194,6 +197,16 @@ TRANSCRIPTION ERROR CORRECTION:
 - عمّان (not امان when context is Jordan)
 - also notice that we don't put the hamza in levant arabic, meaning if you got the transkript saying بيضاء, you should make it بيضا, and so on سماء --> سما etc.
 
+   - Examples:
+     - enough -> بيكفّي  not بيكافي or بكافي
+     - newer -> أجدد  not اجداد
+     - امبارح not أمبارح
+     - شي not شيء
+     - سما not سماء
+     - كمان  not كامان
+     - some examples may include the names of the cities, and contries, try to make it make sense, like a use says Amman, and you see in the transcrript i live in امان in jordan, you should know for sure they mean عمّان!
+     - HAVE CONTEXTUAL AWARNESS, USE YOUR Intellegence to make sense of things!
+   - Always review the transcript for such errors and normalize them to correct Levantine forms.
 
 ═══════════════════════════════════════════════════════════════════
 📋 REQUIRED OUTPUT FORMAT - FOLLOW EXACTLY
