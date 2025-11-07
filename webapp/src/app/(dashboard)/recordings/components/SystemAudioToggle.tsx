@@ -28,7 +28,7 @@ export function SystemAudioToggle({ enabled, onChange, disabled = false }: Syste
           </div>
           <p className="mt-1 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
             Turn this on when wearing headphones or recording meetings (Google Meet, Zoom, etc.).
-            You'll be asked to share your screen/tab to capture system audio.
+            You&apos;ll be asked to share your screen/tab to capture system audio.
           </p>
           {enabled && (
             <div className="mt-2 pt-2 border-t border-blue-500/20">
@@ -36,8 +36,8 @@ export function SystemAudioToggle({ enabled, onChange, disabled = false }: Syste
                 📋 When recording starts:
               </p>
               <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-disc">
-                <li><strong>For browser meetings:</strong> Select "Chrome Tab" + check "Share tab audio"</li>
-                <li><strong>For desktop apps:</strong> Select "Entire Screen" + check "Share system audio"</li>
+                <li><strong>For browser meetings:</strong> Select &quot;Chrome Tab&quot; + check &quot;Share tab audio&quot;</li>
+                <li><strong>For desktop apps:</strong> Select &quot;Entire Screen&quot; + check &quot;Share system audio&quot;</li>
               </ul>
             </div>
           )}
