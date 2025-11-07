@@ -506,6 +506,19 @@ export function useSonioxStream() {
           onError: (status: string, message: string) => {
             console.error("[useSonioxStream] Soniox error", { status, message });
 
+            // Immediately cleanup the old client to prevent "WebSocket already CLOSING" errors
+            // The old client is broken and should not process any more audio
+            const oldClient = clientRef.current;
+            if (oldClient) {
+              console.log("[useSonioxStream] Immediately cleaning up failed client");
+              clientRef.current = null; // Null it out first to prevent further use
+              try {
+                oldClient.cancel(); // Force immediate termination
+              } catch (err) {
+                console.warn("[useSonioxStream] Error canceling failed client", err);
+              }
+            }
+
             // Check if this error is recoverable (network issues)
             if (isRecoverableError(status, message)) {
               console.log("[useSonioxStream] Recoverable error detected - attempting reconnection");
