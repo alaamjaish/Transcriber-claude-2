@@ -234,7 +234,7 @@ export function statusLabel(session: Session): string { ... }
 
 #### `GEMINI_API_KEY`
 - **Status**: ❌ COMPLETELY UNUSED
-- **Set to**: `AIzaSyBkEN-gGymm3l9N4R-KsH66BR5KO1x7GdU`
+- **Set to**: `[REDACTED - API key exposed and should be rotated]`
 - **Evidence**:
   - Grep across entire codebase: 0 references to `GEMINI_API_KEY`
   - App uses `GOOGLE_GENERATIVE_AI_API_KEY` instead
