@@ -116,7 +116,7 @@ export function useLocalBackup() {
       } catch (error) {
         console.error("[recording-backup] Failed during auto-save", error);
       }
-    }, 10_000);
+    }, 2_000);  // 2 seconds - reduces data loss window from 10s to 2s
   };
 
   const stopAutoSave = () => {

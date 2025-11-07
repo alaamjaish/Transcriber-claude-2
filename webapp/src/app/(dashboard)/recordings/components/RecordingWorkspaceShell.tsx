@@ -393,6 +393,29 @@ export function RecordingWorkspaceShell() {
     }
   }, [isOnline, justWentOnline, processQueue, queueCount]);
 
+  // Proactive reconnection when network returns
+  useEffect(() => {
+    // Only trigger if:
+    // 1. Network just came back online
+    // 2. Recording is active
+    // 3. Soniox is NOT connected
+    // 4. Soniox is NOT already reconnecting
+    if (
+      justWentOnline &&
+      isRecordingRef.current &&
+      !soniox.state.connected &&
+      !soniox.state.reconnecting
+    ) {
+      console.log("[RecordingWorkspace] Network returned - triggering immediate reconnection");
+
+      // Trigger immediate reconnection (bypasses exponential backoff delay)
+      // This is the magic: network is back, don't wait, reconnect NOW
+      if (soniox.reconnect) {
+        soniox.reconnect(1);  // Start from attempt 1
+      }
+    }
+  }, [justWentOnline, soniox]);
+
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!isRecordingRef.current) {
@@ -472,7 +495,25 @@ export function RecordingWorkspaceShell() {
       {mixerError ? (
         <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">Audio error: {mixerError}</p>
       ) : null}
-      {soniox.state.error ? (
+      {soniox.state.reconnecting && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 flex-shrink-0 animate-spin text-amber-600" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div className="flex-1">
+              <p className="font-medium text-amber-900 dark:text-amber-200">
+                Connection lost - {soniox.state.error || `Attempt ${soniox.state.reconnectAttempt}/${soniox.state.reconnectMaxAttempts}`}
+              </p>
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                Your recording is safe. Transcript is being saved locally while we reconnect.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {soniox.state.error && !soniox.state.reconnecting ? (
         <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">Stream error: {soniox.state.error}</p>
       ) : null}
       {studentsError ? (
