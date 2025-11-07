@@ -359,7 +359,7 @@ export function StudentRecordingInterface({ student, onEditName }: StudentRecord
       <SystemAudioToggle
         enabled={enableSystemAudio}
         onChange={setEnableSystemAudio}
-        disabled={mixer.state.requesting || soniox.state.status === "live"}
+        disabled={mixer.state.requesting || soniox.state.connected}
       />
 
       {tokenError ? (
