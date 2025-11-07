@@ -80,24 +80,53 @@ export function useAudioMixer(): AudioMixer {
 
       if (options.includeSystemAudio) {
         try {
+          // Request screen/tab sharing with system audio
+          // User must select "Chrome Tab" or "Entire Screen" and check "Share audio"
           systemStreamRef.current = await navigator.mediaDevices.getDisplayMedia({
-            audio: { systemAudio: "include" } as SystemAudioConstraints,
-            video: true,
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+              systemAudio: "include",
+            } as SystemAudioConstraints,
+            video: {
+              displaySurface: "monitor",
+            } as MediaTrackConstraints,
           });
+
           const systemTracks = systemStreamRef.current.getAudioTracks();
           if (systemTracks.length > 0) {
             const systemSource = audioContext.createMediaStreamSource(systemStreamRef.current);
             systemGainRef.current = audioContext.createGain();
             systemGainRef.current.gain.value = options.systemGain;
             systemSource.connect(systemGainRef.current).connect(destinationRef.current);
+
+            // Monitor for track ending (device changes, user stops sharing)
+            systemTracks[0].addEventListener("ended", () => {
+              console.warn("System audio track ended - screen sharing may have stopped or device changed");
+              cleanup();
+            });
+          } else {
+            console.warn("No system audio tracks captured - make sure to check 'Share tab audio' or 'Share system audio' in the browser dialog");
           }
 
           const videoTrack = systemStreamRef.current.getVideoTracks()[0];
           if (videoTrack) {
-            videoTrack.addEventListener("ended", () => cleanup());
+            videoTrack.addEventListener("ended", () => {
+              console.warn("Screen sharing stopped by user");
+              cleanup();
+            });
           }
         } catch (err) {
-          console.warn("System audio capture denied", err);
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
+          console.warn("System audio capture failed:", errorMessage);
+          console.warn("To capture system audio:");
+          console.warn("1. For browser meetings (Google Meet, Zoom): Select 'Chrome Tab' and check 'Share tab audio'");
+          console.warn("2. For desktop apps: Select 'Entire Screen' and check 'Share system audio'");
+          console.warn("3. Make sure you're using Chrome or Edge (best compatibility)");
+
+          // Don't throw error - allow recording to continue with just microphone
+          // User will see this in browser console if they need to troubleshoot
         }
       }
 

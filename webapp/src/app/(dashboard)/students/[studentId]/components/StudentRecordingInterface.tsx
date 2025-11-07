@@ -10,6 +10,7 @@ import { useSessionList } from "@/app/(dashboard)/recordings/components/SessionL
 
 import type { RecordingActions, RecordingResult } from "@/app/(dashboard)/recordings/components/RecordingConsole";
 import { RecordingConsole } from "@/app/(dashboard)/recordings/components/RecordingConsole";
+import { SystemAudioToggle } from "@/app/(dashboard)/recordings/components/SystemAudioToggle";
 import { useAudioMixer } from "@/app/(dashboard)/recordings/hooks/useAudioMixer";
 import { useSonioxToken } from "@/app/(dashboard)/recordings/hooks/useSonioxToken";
 import { useSonioxStream } from "@/app/(dashboard)/recordings/hooks/useSonioxStream";
@@ -47,6 +48,7 @@ export function StudentRecordingInterface({ student, onEditName }: StudentRecord
   const [savingSession, setSavingSession] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [enableSystemAudio, setEnableSystemAudio] = useState(false);
 
   const recordingActionsRef = useRef<RecordingActions | null>(null);
   const isRecordingRef = useRef(false);
@@ -177,7 +179,7 @@ export function StudentRecordingInterface({ student, onEditName }: StudentRecord
         }
 
         const stream = await mixer.start({
-          includeSystemAudio: false,
+          includeSystemAudio: enableSystemAudio,
           micGain: 1,
           systemGain: 1,
         });
@@ -213,7 +215,7 @@ export function StudentRecordingInterface({ student, onEditName }: StudentRecord
         throw error;
       }
     },
-    [backup, fetchToken, mixer, soniox, student.id, student.name],
+    [backup, enableSystemAudio, fetchToken, mixer, soniox, student.id, student.name],
   );
 
   const handleStart = useCallback(
@@ -353,6 +355,12 @@ export function StudentRecordingInterface({ student, onEditName }: StudentRecord
           Connection restored. Uploading {queueCount} queued recording{queueCount > 1 ? "s" : ""}...
         </div>
       )}
+
+      <SystemAudioToggle
+        enabled={enableSystemAudio}
+        onChange={setEnableSystemAudio}
+        disabled={mixer.state.requesting || soniox.state.status === "live"}
+      />
 
       {tokenError ? (
         <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">

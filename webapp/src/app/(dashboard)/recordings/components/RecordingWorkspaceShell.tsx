@@ -13,6 +13,7 @@ import { useSessionList } from "./SessionListProvider";
 import type { RecordingActions, RecordingResult } from "./RecordingConsole";
 import { RecordingConsole } from "./RecordingConsole";
 import { StudentPickerDialog } from "./StudentPickerDialog";
+import { SystemAudioToggle } from "./SystemAudioToggle";
 import { useAudioMixer } from "../hooks/useAudioMixer";
 import { useSonioxToken } from "../hooks/useSonioxToken";
 import { useSonioxStream } from "../hooks/useSonioxStream";
@@ -53,6 +54,7 @@ export function RecordingWorkspaceShell() {
   const [savingSession, setSavingSession] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [enableSystemAudio, setEnableSystemAudio] = useState(false);
 
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -110,7 +112,7 @@ export function RecordingWorkspaceShell() {
         }
 
         const stream = await mixer.start({
-          includeSystemAudio: false,
+          includeSystemAudio: enableSystemAudio,
           micGain: 1,
           systemGain: 1,
         });
@@ -152,7 +154,7 @@ export function RecordingWorkspaceShell() {
         throw error;
       }
     },
-    [backup, currentStudentId, currentStudentName, fetchToken, mixer, soniox],
+    [backup, currentStudentId, currentStudentName, enableSystemAudio, fetchToken, mixer, soniox],
   );
 
   const handleStart = useCallback(
@@ -465,6 +467,12 @@ export function RecordingWorkspaceShell() {
           Connection restored. Uploading {queueCount} queued recording{queueCount > 1 ? "s" : ""}...
         </div>
       )}
+
+      <SystemAudioToggle
+        enabled={enableSystemAudio}
+        onChange={setEnableSystemAudio}
+        disabled={mixer.state.requesting || soniox.state.status === "live"}
+      />
 
       {tokenError ? (
         <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-200">Token error: {tokenError}</p>
