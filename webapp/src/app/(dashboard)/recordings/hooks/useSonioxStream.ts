@@ -18,6 +18,9 @@ interface StartStreamParams {
 interface SonioxStreamState {
   connected: boolean;
   error: string | null;
+  reconnecting: boolean;           // Are we in reconnect loop?
+  reconnectAttempt: number;        // Current attempt (1-6)
+  reconnectMaxAttempts: number;    // Max attempts before giving up
 }
 
 interface TranscriptSegment {
@@ -52,13 +55,63 @@ async function loadSonioxClient(): Promise<SonioxClientConstructor> {
   return sonioxModule.SonioxClient;
 }
 
+// Error classification for reconnection strategy
+function isRecoverableError(status: string, message: string): boolean {
+  // Network-related errors - ALWAYS recoverable
+  if (status === 'websocket_error') return true;
+
+  // Check message content for network keywords
+  const msg = message.toLowerCase();
+  const networkKeywords = [
+    'network',
+    'connection',
+    'timeout',
+    'disconnect',
+    'econnrefused',
+    'enotfound',
+    'enetunreach',
+    'websocket',
+    'socket closed'
+  ];
+
+  if (networkKeywords.some(keyword => msg.includes(keyword))) {
+    return true;
+  }
+
+  // API errors are NOT recoverable (auth, rate limit, etc)
+  if (status === 'api_error') return false;
+
+  // Permission errors are NOT recoverable
+  if (status === 'get_user_media_failed') return false;
+
+  // Default: treat unknown errors as non-recoverable (conservative)
+  return false;
+}
+
+// Generate jitter to avoid thundering herd problem
+function getJitter(maxJitterMs: number = 500): number {
+  return Math.floor(Math.random() * maxJitterMs);
+}
+
 export function useSonioxStream() {
   const clientRef = useRef<SonioxClientInstance | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const finalSegmentsRef = useRef<TranscriptSegment[]>([]);
   const speakerMapRef = useRef<Map<string, string>>(new Map());
 
-  const [state, setState] = useState<SonioxStreamState>({ connected: false, error: null });
+  // Refs for reconnection state tracking
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentStreamRef = useRef<MediaStream | null>(null);
+  const currentActionsRef = useRef<RecordingActions | null>(null);
+  const isReconnectingRef = useRef(false);
+
+  const [state, setState] = useState<SonioxStreamState>({
+    connected: false,
+    error: null,
+    reconnecting: false,
+    reconnectAttempt: 0,
+    reconnectMaxAttempts: 6
+  });
 
   // Critical token filter (from results.md) - prevents control artifacts like "end end"
   const isDisplayableTokenText = useCallback((text: string): boolean => {
@@ -158,7 +211,24 @@ export function useSonioxStream() {
     [appendFinalSegment, labelForSpeaker, buildLiveFromNonFinals, isDisplayableTokenText],
   );
 
+  // Cancel any pending reconnection attempts
+  const cancelReconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    isReconnectingRef.current = false;
+    setState((prev) => ({
+      ...prev,
+      reconnecting: false,
+      reconnectAttempt: 0
+    }));
+  }, []);
+
   const stop = useCallback((options?: { resetStart?: boolean }) => {
+    // Cancel any pending reconnection
+    cancelReconnect();
+
     if (clientRef.current) {
       try {
         clientRef.current.stop();
@@ -167,19 +237,246 @@ export function useSonioxStream() {
       }
       clientRef.current = null;
     }
+
+    // Clear refs
+    currentStreamRef.current = null;
+    currentActionsRef.current = null;
+
     if (options?.resetStart) {
       startedAtRef.current = null;
     }
     setState((prev) => ({ ...prev, connected: false }));
-  }, []);
+  }, [cancelReconnect]);
+
+  // Core reconnection function with exponential backoff + jitter
+  const reconnect = useCallback(async (
+    attempt: number = 1
+  ): Promise<void> => {
+    const MAX_ATTEMPTS = state.reconnectMaxAttempts;
+
+    // Prevent multiple simultaneous reconnection attempts
+    if (attempt === 1 && isReconnectingRef.current) {
+      console.log("[useSonioxStream] Reconnection already in progress, skipping");
+      return;
+    }
+
+    // Give up after max attempts
+    if (attempt > MAX_ATTEMPTS) {
+      console.error(`[useSonioxStream] Reconnection failed after ${MAX_ATTEMPTS} attempts`);
+
+      const actions = currentActionsRef.current;
+      if (actions) {
+        actions.fail("Connection lost. Recording saved locally and will upload when online.");
+      }
+
+      setState(prev => ({
+        ...prev,
+        connected: false,
+        reconnecting: false,
+        reconnectAttempt: 0,
+        error: "Connection lost after multiple retry attempts"
+      }));
+
+      // Properly clean up the old client
+      if (clientRef.current) {
+        try {
+          clientRef.current.cancel(); // Use cancel() instead of stop() for immediate termination
+        } catch (err) {
+          console.warn("[useSonioxStream] Error canceling client during failed reconnect", err);
+        }
+        clientRef.current = null;
+      }
+
+      isReconnectingRef.current = false;
+      return;
+    }
+
+    // Calculate delay: exponential backoff with jitter
+    // Attempt 1: 0ms, Attempt 2: 1s, Attempt 3: 2s, Attempt 4: 4s, etc.
+    const baseDelay = attempt === 1 ? 0 : Math.pow(2, attempt - 2) * 1000;
+    const jitter = attempt === 1 ? 0 : getJitter(500);
+    const delayMs = Math.min(baseDelay + jitter, 16000); // Cap at 16s
+
+    console.log(`[useSonioxStream] Reconnect attempt ${attempt}/${MAX_ATTEMPTS} in ${delayMs}ms`);
+
+    // Update UI state
+    setState(prev => ({
+      ...prev,
+      reconnecting: true,
+      reconnectAttempt: attempt,
+      error: `Reconnecting... (${attempt}/${MAX_ATTEMPTS})`
+    }));
+
+    const actions = currentActionsRef.current;
+    if (actions) {
+      actions.fail(`Reconnecting... (${attempt}/${MAX_ATTEMPTS})`);
+    }
+
+    // Wait with exponential backoff
+    await new Promise<void>(resolve => {
+      reconnectTimeoutRef.current = setTimeout(resolve, delayMs);
+    });
+
+    // Check if reconnection was cancelled (e.g., user manually stopped)
+    if (!isReconnectingRef.current) {
+      console.log("[useSonioxStream] Reconnection cancelled");
+      return;
+    }
+
+    try {
+      // Properly clean up the old client BEFORE creating a new one
+      if (clientRef.current) {
+        console.log("[useSonioxStream] Cleaning up old client before reconnect");
+        try {
+          clientRef.current.cancel(); // Use cancel() for immediate termination
+        } catch (err) {
+          console.warn("[useSonioxStream] Error cleaning up old client", err);
+        }
+        clientRef.current = null;
+      }
+
+      // Fetch NEW token (old one might be stale)
+      console.log("[useSonioxStream] Fetching fresh Soniox token for reconnect");
+      const tokenResponse = await fetch("/api/soniox/token", { method: "POST" });
+      if (!tokenResponse.ok) {
+        throw new Error(`Token fetch failed: ${tokenResponse.status}`);
+      }
+      const tokenData = await tokenResponse.json();
+
+      if (!tokenData.apiKey) {
+        throw new Error("Token response missing apiKey");
+      }
+
+      // Get saved MediaStream reference
+      const stream = currentStreamRef.current;
+      if (!stream) {
+        throw new Error("MediaStream reference lost during reconnection");
+      }
+
+      // Create NEW Soniox client instance (old one is dead)
+      const SonioxClientCtor = await loadSonioxClient();
+      const client = new SonioxClientCtor({
+        apiKey: tokenData.apiKey,
+        webSocketUri: tokenData.websocketUrl ?? undefined,
+        onStarted: () => {
+          console.log("[useSonioxStream] Reconnection successful!");
+          setState(prev => ({
+            ...prev,
+            connected: true,
+            reconnecting: false,
+            reconnectAttempt: 0,
+            error: null
+          }));
+
+          // DON'T call actions.setLive() - we're already live, just reconnected
+          // The startedAt timestamp should NOT change
+          isReconnectingRef.current = false;
+        },
+        onPartialResult: (result: { tokens?: SonioxToken[] }) => {
+          try {
+            const actions = currentActionsRef.current;
+            if (actions) {
+              processTokens(result?.tokens ?? [], actions);
+            }
+          } catch (error) {
+            console.warn("[useSonioxStream] Partial result error after reconnect", error);
+          }
+        },
+        onFinished: () => {
+          console.log("[useSonioxStream] Soniox finished after reconnect");
+          const actions = currentActionsRef.current;
+          if (actions) {
+            actions.updateLive([...finalSegmentsRef.current], speakerMapRef.current.size);
+          }
+          stop({ resetStart: true });
+        },
+        onError: (status: string, message: string) => {
+          console.error("[useSonioxStream] Error during reconnect", { status, message });
+
+          // Check if we're still supposed to be reconnecting
+          if (!isReconnectingRef.current) {
+            console.log("[useSonioxStream] Ignoring error during aborted reconnection");
+            return;
+          }
+
+          // Recursive: retry again if it's still recoverable
+          if (isRecoverableError(status, message)) {
+            // Add a delay before recursive retry to prevent rapid-fire
+            setTimeout(() => {
+              if (isReconnectingRef.current) {
+                reconnect(attempt + 1);
+              }
+            }, 500);
+          } else {
+            // Non-recoverable error during reconnect - give up
+            const errorMessage = message || status || "Stream error during reconnection";
+            const actions = currentActionsRef.current;
+            if (actions) {
+              actions.fail(errorMessage);
+            }
+            setState(prev => ({
+              ...prev,
+              connected: false,
+              reconnecting: false,
+              reconnectAttempt: 0,
+              error: errorMessage
+            }));
+            stop({ resetStart: true });
+            isReconnectingRef.current = false;
+          }
+        }
+      });
+
+      clientRef.current = client;
+
+      // Restart WebSocket with SAME config as original
+      await client.start({
+        model: DEFAULT_MODEL,
+        stream,
+        enableSpeakerDiarization: true,
+        enableLanguageIdentification: true,
+        enableEndpointDetection: false,
+        languageHints: ["en", "ar"],
+      });
+
+      console.log("[useSonioxStream] Reconnect WebSocket started successfully");
+
+    } catch (error) {
+      console.error(`[useSonioxStream] Reconnect attempt ${attempt} failed`, error);
+
+      // Check if we should still retry (user might have stopped recording)
+      if (!isReconnectingRef.current) {
+        console.log("[useSonioxStream] Reconnection aborted by user");
+        return;
+      }
+
+      // Schedule retry with a small additional delay to prevent rapid-fire retries
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Double-check we're still reconnecting after the delay
+      if (isReconnectingRef.current) {
+        reconnect(attempt + 1);
+      }
+    }
+  }, [processTokens, stop, state.reconnectMaxAttempts]);
 
   const start = useCallback(
     async ({ apiKey, websocketUrl, stream, actions }: StartStreamParams) => {
       stop({ resetStart: true });
-      setState({ connected: false, error: null });
+      setState({
+        connected: false,
+        error: null,
+        reconnecting: false,
+        reconnectAttempt: 0,
+        reconnectMaxAttempts: 6
+      });
       finalSegmentsRef.current = [];
       speakerMapRef.current = new Map();
       startedAtRef.current = Date.now();
+
+      // Save stream and actions refs for reconnection
+      currentStreamRef.current = stream;
+      currentActionsRef.current = actions;
 
       try {
         const SonioxClientCtor = await loadSonioxClient();
@@ -187,7 +484,11 @@ export function useSonioxStream() {
           apiKey,
           webSocketUri: websocketUrl ?? undefined,
           onStarted: () => {
-            setState({ connected: true, error: null });
+            setState(prev => ({
+              ...prev,
+              connected: true,
+              error: null
+            }));
             const startedAt = startedAtRef.current ?? Date.now();
             actions.setLive(startedAt);
           },
@@ -203,10 +504,44 @@ export function useSonioxStream() {
             stop({ resetStart: true });
           },
           onError: (status: string, message: string) => {
-            const errorMessage = message || status || "Stream error";
-            actions.fail(errorMessage);
-            setState({ connected: false, error: errorMessage });
-            stop({ resetStart: true });
+            console.error("[useSonioxStream] Soniox error", { status, message });
+
+            // Immediately cleanup the old client to prevent "WebSocket already CLOSING" errors
+            // The old client is broken and should not process any more audio
+            const oldClient = clientRef.current;
+            if (oldClient) {
+              console.log("[useSonioxStream] Immediately cleaning up failed client");
+              clientRef.current = null; // Null it out first to prevent further use
+              try {
+                oldClient.cancel(); // Force immediate termination
+              } catch (err) {
+                console.warn("[useSonioxStream] Error canceling failed client", err);
+              }
+            }
+
+            // Check if this error is recoverable (network issues)
+            if (isRecoverableError(status, message)) {
+              console.log("[useSonioxStream] Recoverable error detected - attempting reconnection");
+
+              // Mark as reconnecting
+              isReconnectingRef.current = true;
+
+              // Start reconnection sequence
+              reconnect(1);
+            } else {
+              // Non-recoverable error (API auth, permissions, etc) - fail permanently
+              console.error("[useSonioxStream] Non-recoverable error - stopping recording");
+              const errorMessage = message || status || "Stream error";
+              actions.fail(errorMessage);
+              setState(prev => ({
+                ...prev,
+                connected: false,
+                error: errorMessage,
+                reconnecting: false,
+                reconnectAttempt: 0
+              }));
+              stop({ resetStart: true });
+            }
           },
         });
 
@@ -223,12 +558,16 @@ export function useSonioxStream() {
         console.error("Soniox start error", error);
         const message = (error as Error).message || "Failed to start stream";
         actions.fail(message);
-        setState({ connected: false, error: message });
+        setState(prev => ({
+          ...prev,
+          connected: false,
+          error: message
+        }));
         stop({ resetStart: true });
         throw error;
       }
     },
-    [processTokens, stop],
+    [processTokens, stop, reconnect],
   );
 
   const getTranscriptText = useCallback(() => {
@@ -247,5 +586,15 @@ export function useSonioxStream() {
 
   const getStartTimestamp = useCallback(() => startedAtRef.current, []);
 
-  return { state, start, stop, getTranscriptText, getFinalSegments, getSpeakerCount, getStartTimestamp };
+  return {
+    state,
+    start,
+    stop,
+    reconnect,           // Expose for manual/proactive reconnection
+    cancelReconnect,     // Expose for canceling reconnection
+    getTranscriptText,
+    getFinalSegments,
+    getSpeakerCount,
+    getStartTimestamp
+  };
 }

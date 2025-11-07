@@ -6,7 +6,7 @@ import { RecordingControls } from "./RecordingControls";
 import { StatusIndicator } from "./StatusIndicator";
 import { TranscriptPane } from "./TranscriptPane";
 
-export type RecordingPhase = "idle" | "requesting" | "connecting" | "live" | "finishing" | "finished" | "error";
+export type RecordingPhase = "idle" | "requesting" | "connecting" | "live" | "reconnecting" | "finishing" | "finished" | "error";
 
 export interface RecordingResult {
   transcript: string;
@@ -44,6 +44,7 @@ type Action =
   | { type: "REQUEST" }
   | { type: "CONNECT" }
   | { type: "LIVE"; startedAt: number }
+  | { type: "RECONNECTING"; message: string }
   | { type: "APPEND_LIVE"; segments: TranscriptSegment[]; speakerCount: number }
   | { type: "APPEND_FINAL"; segments: TranscriptSegment[]; speakerCount: number }
   | { type: "FINISH"; durationMs: number }
@@ -60,6 +61,12 @@ function reducer(state: RecordingState, action: Action): RecordingState {
       return { ...state, phase: "connecting", errorMessage: null };
     case "LIVE":
       return { ...state, phase: "live", startedAt: action.startedAt, errorMessage: null };
+    case "RECONNECTING":
+      return {
+        ...state,
+        phase: "reconnecting",
+        errorMessage: action.message
+      };
     case "APPEND_LIVE":
       return {
         ...state,
@@ -99,6 +106,7 @@ function reducer(state: RecordingState, action: Action): RecordingState {
 export interface RecordingActions {
   setConnecting: () => void;
   setLive: (startedAt: number) => void;
+  setReconnecting: (message: string) => void;
   updateLive: (segments: TranscriptSegment[], speakerCount: number) => void;
   updateFinal: (segments: TranscriptSegment[], speakerCount: number) => void;
   finish: (durationMs: number) => void;
@@ -122,6 +130,7 @@ export function RecordingConsole({ onStart, onStop, onCancel, title = "Recording
     () => ({
       setConnecting: () => dispatch({ type: "CONNECT" }),
       setLive: (startedAt: number) => dispatch({ type: "LIVE", startedAt }),
+      setReconnecting: (message: string) => dispatch({ type: "RECONNECTING", message }),
       updateLive: (segments, speakerCount) =>
         dispatch({ type: "APPEND_LIVE", segments, speakerCount }),
       updateFinal: (segments, speakerCount) =>
@@ -176,6 +185,8 @@ export function RecordingConsole({ onStart, onStop, onCancel, title = "Recording
         return { label: "Connecting to Soniox", tone: "busy" as const };
       case "live":
         return { label: "Live", tone: "live" as const };
+      case "reconnecting":
+        return { label: state.errorMessage || "Reconnecting...", tone: "busy" as const };
       case "finishing":
         return { label: "Finishing", tone: "busy" as const };
       case "finished":
