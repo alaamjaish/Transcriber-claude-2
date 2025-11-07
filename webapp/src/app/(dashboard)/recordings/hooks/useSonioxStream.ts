@@ -419,7 +419,7 @@ export function useSonioxStream() {
       // Retry with next attempt
       reconnect(attempt + 1);
     }
-  }, [processTokens, stop, state.reconnectMaxAttempts, cancelReconnect]);
+  }, [processTokens, stop, state.reconnectMaxAttempts]);
 
   const start = useCallback(
     async ({ apiKey, websocketUrl, stream, actions }: StartStreamParams) => {
@@ -506,12 +506,16 @@ export function useSonioxStream() {
         console.error("Soniox start error", error);
         const message = (error as Error).message || "Failed to start stream";
         actions.fail(message);
-        setState({ connected: false, error: message });
+        setState(prev => ({
+          ...prev,
+          connected: false,
+          error: message
+        }));
         stop({ resetStart: true });
         throw error;
       }
     },
-    [processTokens, stop],
+    [processTokens, stop, reconnect],
   );
 
   const getTranscriptText = useCallback(() => {
