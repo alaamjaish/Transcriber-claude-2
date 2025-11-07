@@ -30,7 +30,10 @@
       "Bash(npm uninstall:*)",
       "WebFetch(domain:www.npmjs.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:ai-sdk.dev)"
+      "WebFetch(domain:ai-sdk.dev)",
+      "Bash(git pull:*)",
+      "WebFetch(domain:soniox.com)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []
