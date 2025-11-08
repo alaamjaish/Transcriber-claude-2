@@ -539,16 +539,6 @@ export function useSonioxStream() {
         onStarted: () => {
           console.log("[useSonioxStream] ✅ Proactive cycle successful! New session connected.");
 
-          // Close old client IMMEDIATELY without triggering callbacks
-          // Use cancel() instead of stop() to prevent onFinished from firing
-          if (oldClient) {
-            try {
-              oldClient.cancel();
-            } catch (err) {
-              console.warn("[useSonioxStream] Error canceling old client during cycle", err);
-            }
-          }
-
           // Update state - back to normal connected state
           setState(prev => ({
             ...prev,
@@ -557,8 +547,14 @@ export function useSonioxStream() {
             error: null
           }));
 
-          // DON'T call actions.setLive() - we never stopped being live!
-          // The startedAt timestamp stays the SAME (recording duration preserved)
+          // Clear the "Refreshing..." UI state back to "Live"
+          // Use same startedAt so timer doesn't reset
+          const actions = currentActionsRef.current;
+          if (actions?.setLive) {
+            const currentStartTime = startedAtRef.current ?? Date.now();
+            actions.setLive(currentStartTime);
+          }
+
           isRefreshingRef.current = false;
 
           // CRITICAL: Schedule the NEXT cycle in 55 minutes!
@@ -612,8 +608,21 @@ export function useSonioxStream() {
         }
       });
 
-      // Step 5: Start new client with SAME config as original
+      // Step 5: Cancel old client BEFORE updating clientRef (prevents race condition!)
+      // If we update clientRef first, old client's callbacks might operate on new client
+      if (oldClient) {
+        try {
+          console.log("[useSonioxStream] Canceling old client before switching to new one");
+          oldClient.cancel();
+        } catch (err) {
+          console.warn("[useSonioxStream] Error canceling old client before switch", err);
+        }
+      }
+
+      // Step 6: Now it's safe to update clientRef to new client
       clientRef.current = newClient;
+
+      // Step 7: Start new client with SAME config as original
       await newClient.start({
         model: DEFAULT_MODEL,
         stream,
