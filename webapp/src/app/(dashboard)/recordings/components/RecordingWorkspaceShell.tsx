@@ -336,6 +336,15 @@ export function RecordingWorkspaceShell() {
       return;
     }
 
+    // Don't recover if transcript is too short (< 10 words = likely accidental/cancelled)
+    const wordCount = draft.transcript.trim().split(/\s+/).filter(w => w.length > 0).length;
+    if (wordCount < 10) {
+      console.log(`[RecordingWorkspace] Skipping recovery - transcript too short (${wordCount} words)`);
+      backup.clearDraft(); // Clear the useless draft
+      recoveryAttemptedRef.current = true;
+      return;
+    }
+
     recoveryAttemptedRef.current = true;
     setSavingSession(true);
     setSaveError(null);
