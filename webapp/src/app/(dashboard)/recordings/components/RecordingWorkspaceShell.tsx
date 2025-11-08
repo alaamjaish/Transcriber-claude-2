@@ -325,6 +325,17 @@ export function RecordingWorkspaceShell() {
       return;
     }
 
+    // CRITICAL: Don't recover if the recording is still active in another tab!
+    // Only recover if status is "paused" or if it's been idle for >10 seconds
+    const timeSinceLastSave = Date.now() - draft.lastSaved;
+    const isStale = timeSinceLastSave > 10_000; // 10 seconds
+
+    if (draft.status === "recording" && !isStale) {
+      console.log("[RecordingWorkspace] Skipping recovery - recording is still active in another tab/session");
+      recoveryAttemptedRef.current = true; // Mark as attempted to prevent retry
+      return;
+    }
+
     recoveryAttemptedRef.current = true;
     setSavingSession(true);
     setSaveError(null);

@@ -12,7 +12,7 @@ interface RecordingControlsProps {
 
 export function RecordingControls({ phase, onStart, onStop, onCancel, disabled }: RecordingControlsProps) {
   const isIdle = phase === "idle" || phase === "error" || phase === "finished";
-  const isLive = phase === "live" || phase === "reconnecting";  // Allow stop during reconnection
+  const isLive = phase === "live" || phase === "reconnecting" || phase === "refreshing";  // Allow stop during reconnection & refresh
   const isBusy = phase === "requesting" || phase === "connecting";
 
   return (
