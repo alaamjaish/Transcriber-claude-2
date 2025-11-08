@@ -152,7 +152,8 @@ export function RecordingConsole({ onStart, onStop, onCancel, title = "Recording
    );
 
   useEffect(() => {
-    if (state.phase !== "live") {
+    // Keep timer running during "live" AND "refreshing" (proactive cycle)
+    if (state.phase !== "live" && state.phase !== "refreshing") {
       return;
     }
 

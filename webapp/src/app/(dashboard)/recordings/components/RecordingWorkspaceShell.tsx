@@ -272,6 +272,7 @@ export function RecordingWorkspaceShell() {
       }
       mixer.stop();
       backup.stopAutoSave();
+      backup.clearDraft(); // Clear local backup - don't save on cancel!
       selectedStudentRef.current = null;
       resetActions(actions);
       setSaveError(null);
