@@ -320,12 +320,21 @@ export function RecordingWorkspaceShell() {
     if (recoveryAttemptedRef.current) {
       return;
     }
+
+    // CRITICAL: NEVER recover if we're currently recording in THIS tab!
+    // This prevents the 45-second bug where proactive cycle timing triggers recovery
+    if (isRecordingRef.current) {
+      console.log("[RecordingWorkspace] Skipping recovery - currently recording in this tab");
+      recoveryAttemptedRef.current = true;
+      return;
+    }
+
     const draft = backup.loadDraft();
     if (!draft || !draft.studentId) {
       return;
     }
 
-    // CRITICAL: Don't recover if the recording is still active in another tab!
+    // Don't recover if the recording is still active in another tab
     // Only recover if status is "paused" or if it's been idle for >10 seconds
     const timeSinceLastSave = Date.now() - draft.lastSaved;
     const isStale = timeSinceLastSave > 10_000; // 10 seconds
