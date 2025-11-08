@@ -48,8 +48,8 @@ const DEFAULT_MODEL = "stt-rt-preview";
 // Proactive session cycling to prevent token expiration
 // Token expires at 60 minutes, we cycle at 55 minutes (5-minute safety buffer)
 // Set to 2 minutes for testing, 55 minutes for production
-const PROACTIVE_CYCLE_INTERVAL = 55 * 60 * 1000; // 55 minutes
-// const PROACTIVE_CYCLE_INTERVAL = 2 * 60 * 1000; // 2 minutes (FOR TESTING ONLY)
+// const PROACTIVE_CYCLE_INTERVAL = 55 * 60 * 1000; // 55 minutes
+const PROACTIVE_CYCLE_INTERVAL = 2 * 60 * 1000; // 2 minutes (FOR TESTING ONLY)
 
 let sonioxModulePromise: Promise<SonioxModule> | null = null;
 
