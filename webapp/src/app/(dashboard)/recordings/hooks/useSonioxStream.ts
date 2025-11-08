@@ -21,6 +21,7 @@ interface SonioxStreamState {
   reconnecting: boolean;           // Are we in reconnect loop?
   reconnectAttempt: number;        // Current attempt (1-6)
   reconnectMaxAttempts: number;    // Max attempts before giving up
+  refreshing: boolean;             // Are we proactively cycling the session?
 }
 
 interface TranscriptSegment {
@@ -43,6 +44,12 @@ interface SonioxToken {
 }
 
 const DEFAULT_MODEL = "stt-rt-preview";
+
+// Proactive session cycling to prevent token expiration
+// Token expires at 60 minutes, we cycle at 55 minutes (5-minute safety buffer)
+// Set to 2 minutes for testing, 55 minutes for production
+const PROACTIVE_CYCLE_INTERVAL = 55 * 60 * 1000; // 55 minutes
+// const PROACTIVE_CYCLE_INTERVAL = 2 * 60 * 1000; // 2 minutes (FOR TESTING ONLY)
 
 let sonioxModulePromise: Promise<SonioxModule> | null = null;
 
@@ -105,12 +112,17 @@ export function useSonioxStream() {
   const currentActionsRef = useRef<RecordingActions | null>(null);
   const isReconnectingRef = useRef(false);
 
+  // Refs for proactive session cycling (prevents token expiration)
+  const cycleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRefreshingRef = useRef(false);
+
   const [state, setState] = useState<SonioxStreamState>({
     connected: false,
     error: null,
     reconnecting: false,
     reconnectAttempt: 0,
-    reconnectMaxAttempts: 6
+    reconnectMaxAttempts: 6,
+    refreshing: false
   });
 
   // Critical token filter (from results.md) - prevents control artifacts like "end end"
@@ -229,6 +241,13 @@ export function useSonioxStream() {
     // Cancel any pending reconnection
     cancelReconnect();
 
+    // Cancel any pending proactive cycle
+    if (cycleTimerRef.current) {
+      clearTimeout(cycleTimerRef.current);
+      cycleTimerRef.current = null;
+    }
+    isRefreshingRef.current = false;
+
     if (clientRef.current) {
       try {
         clientRef.current.stop();
@@ -245,7 +264,7 @@ export function useSonioxStream() {
     if (options?.resetStart) {
       startedAtRef.current = null;
     }
-    setState((prev) => ({ ...prev, connected: false }));
+    setState((prev) => ({ ...prev, connected: false, refreshing: false }));
   }, [cancelReconnect]);
 
   // Core reconnection function with exponential backoff + jitter
@@ -460,6 +479,180 @@ export function useSonioxStream() {
     }
   }, [processTokens, stop, state.reconnectMaxAttempts]);
 
+  // Proactive session cycling (prevents 60-minute token expiration)
+  const proactiveCycle = useCallback(async (): Promise<void> => {
+    // Guard: prevent multiple simultaneous cycles
+    if (isRefreshingRef.current) {
+      console.log("[useSonioxStream] Proactive cycle already in progress, skipping");
+      return;
+    }
+
+    // Guard: only cycle if we're actually connected and recording
+    if (!state.connected || !currentStreamRef.current) {
+      console.log("[useSonioxStream] Not cycling - not connected or no stream");
+      return;
+    }
+
+    console.log("[useSonioxStream] 🔄 Starting proactive session cycle (preventing token expiration)");
+    isRefreshingRef.current = true;
+
+    // Update UI - show refreshing state (NOT an error!)
+    setState(prev => ({
+      ...prev,
+      refreshing: true
+    }));
+
+    const actions = currentActionsRef.current;
+    if (actions?.setRefreshing) {
+      // Show refreshing UI (different from error reconnecting!)
+      actions.setRefreshing("Refreshing connection...");
+    }
+
+    try {
+      // Step 1: Fetch NEW token (fresh 60-minute token)
+      console.log("[useSonioxStream] Fetching fresh Soniox token for cycle");
+      const tokenResponse = await fetch("/api/soniox/token", { method: "POST" });
+      if (!tokenResponse.ok) {
+        throw new Error(`Token fetch failed: ${tokenResponse.status}`);
+      }
+      const tokenData = await tokenResponse.json();
+
+      if (!tokenData.apiKey) {
+        throw new Error("Token response missing apiKey");
+      }
+
+      // Step 2: Get current MediaStream (keep using same audio stream!)
+      const stream = currentStreamRef.current;
+      if (!stream) {
+        throw new Error("MediaStream reference lost during cycle");
+      }
+
+      // Step 3: Save reference to old client (we'll close it after new one connects)
+      const oldClient = clientRef.current;
+
+      // Step 4: Create NEW Soniox client with fresh token
+      const SonioxClientCtor = await loadSonioxClient();
+      const newClient = new SonioxClientCtor({
+        apiKey: tokenData.apiKey,
+        webSocketUri: tokenData.websocketUrl ?? undefined,
+        onStarted: () => {
+          console.log("[useSonioxStream] ✅ Proactive cycle successful! New session connected.");
+
+          // Close old client gracefully (new one is already receiving audio)
+          if (oldClient) {
+            try {
+              oldClient.stop();
+            } catch (err) {
+              console.warn("[useSonioxStream] Error stopping old client during cycle", err);
+            }
+          }
+
+          // Update state - back to normal connected state
+          setState(prev => ({
+            ...prev,
+            connected: true,
+            refreshing: false,
+            error: null
+          }));
+
+          // DON'T call actions.setLive() - we never stopped being live!
+          // The startedAt timestamp stays the SAME (recording duration preserved)
+          isRefreshingRef.current = false;
+
+          // CRITICAL: Schedule the NEXT cycle in 55 minutes!
+          scheduleCycle();
+        },
+        onPartialResult: (result: { tokens?: SonioxToken[] }) => {
+          try {
+            const actions = currentActionsRef.current;
+            if (actions) {
+              processTokens(result?.tokens ?? [], actions);
+            }
+          } catch (error) {
+            console.warn("[useSonioxStream] Partial result error after cycle", error);
+          }
+        },
+        onFinished: () => {
+          console.log("[useSonioxStream] Soniox finished after cycle");
+          const actions = currentActionsRef.current;
+          if (actions) {
+            actions.updateLive([...finalSegmentsRef.current], speakerMapRef.current.size);
+          }
+          stop({ resetStart: true });
+        },
+        onError: (status: string, message: string) => {
+          console.error("[useSonioxStream] Error during proactive cycle", { status, message });
+
+          // If cycle fails, fall back to error reconnection
+          setState(prev => ({
+            ...prev,
+            refreshing: false
+          }));
+          isRefreshingRef.current = false;
+
+          // Let the normal error reconnection handle it
+          if (isRecoverableError(status, message)) {
+            isReconnectingRef.current = true;
+            reconnect(1);
+          } else {
+            const errorMessage = message || status || "Stream error during session cycle";
+            const actions = currentActionsRef.current;
+            if (actions) {
+              actions.fail(errorMessage);
+            }
+            setState(prev => ({
+              ...prev,
+              connected: false,
+              error: errorMessage
+            }));
+            stop({ resetStart: true });
+          }
+        }
+      });
+
+      // Step 5: Start new client with SAME config as original
+      clientRef.current = newClient;
+      await newClient.start({
+        model: DEFAULT_MODEL,
+        stream,
+        enableSpeakerDiarization: true,
+        enableLanguageIdentification: true,
+        enableEndpointDetection: false,
+        languageHints: ["en", "ar"],
+      });
+
+      console.log("[useSonioxStream] New session WebSocket started successfully during cycle");
+
+    } catch (error) {
+      console.error("[useSonioxStream] Proactive cycle failed", error);
+
+      // Cycle failed - fall back to error reconnection
+      setState(prev => ({
+        ...prev,
+        refreshing: false
+      }));
+      isRefreshingRef.current = false;
+
+      // Trigger error reconnection as fallback
+      isReconnectingRef.current = true;
+      reconnect(1);
+    }
+  }, [state.connected, processTokens, reconnect, stop]);
+
+  // Schedule the next proactive cycle
+  const scheduleCycle = useCallback(() => {
+    // Clear any existing timer first
+    if (cycleTimerRef.current) {
+      clearTimeout(cycleTimerRef.current);
+    }
+
+    console.log(`[useSonioxStream] ⏰ Scheduling next proactive cycle in ${PROACTIVE_CYCLE_INTERVAL / 1000 / 60} minutes`);
+
+    cycleTimerRef.current = setTimeout(() => {
+      proactiveCycle();
+    }, PROACTIVE_CYCLE_INTERVAL);
+  }, [proactiveCycle]);
+
   const start = useCallback(
     async ({ apiKey, websocketUrl, stream, actions }: StartStreamParams) => {
       stop({ resetStart: true });
@@ -468,7 +661,8 @@ export function useSonioxStream() {
         error: null,
         reconnecting: false,
         reconnectAttempt: 0,
-        reconnectMaxAttempts: 6
+        reconnectMaxAttempts: 6,
+        refreshing: false
       });
       finalSegmentsRef.current = [];
       speakerMapRef.current = new Map();
@@ -491,6 +685,10 @@ export function useSonioxStream() {
             }));
             const startedAt = startedAtRef.current ?? Date.now();
             actions.setLive(startedAt);
+
+            // CRITICAL: Start the proactive cycle timer!
+            // This will automatically refresh the session at 55 minutes to prevent token expiration
+            scheduleCycle();
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
             try {
@@ -567,7 +765,7 @@ export function useSonioxStream() {
         throw error;
       }
     },
-    [processTokens, stop, reconnect],
+    [processTokens, stop, reconnect, scheduleCycle],
   );
 
   const getTranscriptText = useCallback(() => {

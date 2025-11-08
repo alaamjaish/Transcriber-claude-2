@@ -20,7 +20,9 @@ export async function issueSonioxToken(): Promise<SonioxTokenResponse> {
     },
     body: JSON.stringify({
       usage_type: "transcribe_websocket",
-      expires_in_seconds: 3600,
+      // Increased from 3600 (60 min) to 5400 (90 min) for extra safety buffer
+      // Proactive cycle happens at 55 minutes, giving us 35 minutes of buffer
+      expires_in_seconds: 5400,
     }),
   });
 
