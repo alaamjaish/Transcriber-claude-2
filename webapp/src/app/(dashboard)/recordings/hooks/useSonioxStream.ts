@@ -488,7 +488,8 @@ export function useSonioxStream() {
     }
 
     // Guard: only cycle if we're actually connected and recording
-    if (!state.connected || !currentStreamRef.current) {
+    // Check refs (always current) instead of state (can be stale in closures)
+    if (!clientRef.current || !currentStreamRef.current) {
       console.log("[useSonioxStream] Not cycling - not connected or no stream");
       return;
     }
@@ -637,7 +638,7 @@ export function useSonioxStream() {
       isReconnectingRef.current = true;
       reconnect(1);
     }
-  }, [state.connected, processTokens, reconnect, stop]);
+  }, [processTokens, reconnect, stop]);
 
   // Schedule the next proactive cycle
   const scheduleCycle = useCallback(() => {
