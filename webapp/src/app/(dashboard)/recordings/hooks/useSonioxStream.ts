@@ -47,9 +47,9 @@ const DEFAULT_MODEL = "stt-rt-preview";
 
 // Proactive session cycling to prevent token expiration
 // Token expires at 60 minutes, we cycle at 55 minutes (5-minute safety buffer)
-// Set to 2 minutes for testing, 55 minutes for production
+// Set to 45 seconds for testing, 55 minutes for production
 // const PROACTIVE_CYCLE_INTERVAL = 55 * 60 * 1000; // 55 minutes
-const PROACTIVE_CYCLE_INTERVAL = 2 * 60 * 1000; // 2 minutes (FOR TESTING ONLY)
+const PROACTIVE_CYCLE_INTERVAL = 45 * 1000; // 45 seconds (FOR TESTING ONLY)
 
 let sonioxModulePromise: Promise<SonioxModule> | null = null;
 
@@ -539,12 +539,13 @@ export function useSonioxStream() {
         onStarted: () => {
           console.log("[useSonioxStream] ✅ Proactive cycle successful! New session connected.");
 
-          // Close old client gracefully (new one is already receiving audio)
+          // Close old client IMMEDIATELY without triggering callbacks
+          // Use cancel() instead of stop() to prevent onFinished from firing
           if (oldClient) {
             try {
-              oldClient.stop();
+              oldClient.cancel();
             } catch (err) {
-              console.warn("[useSonioxStream] Error stopping old client during cycle", err);
+              console.warn("[useSonioxStream] Error canceling old client during cycle", err);
             }
           }
 
@@ -647,7 +648,11 @@ export function useSonioxStream() {
       clearTimeout(cycleTimerRef.current);
     }
 
-    console.log(`[useSonioxStream] ⏰ Scheduling next proactive cycle in ${PROACTIVE_CYCLE_INTERVAL / 1000 / 60} minutes`);
+    const intervalSeconds = PROACTIVE_CYCLE_INTERVAL / 1000;
+    const displayTime = intervalSeconds >= 60
+      ? `${intervalSeconds / 60} minutes`
+      : `${intervalSeconds} seconds`;
+    console.log(`[useSonioxStream] ⏰ Scheduling next proactive cycle in ${displayTime}`);
 
     cycleTimerRef.current = setTimeout(() => {
       proactiveCycle();
