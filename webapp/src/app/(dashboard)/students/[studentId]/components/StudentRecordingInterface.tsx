@@ -374,8 +374,13 @@ export function StudentRecordingInterface({ student, onEditName }: StudentRecord
         </p>
       ) : null}
       {soniox.state.error ? (
-        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-xs text-rose-600 dark:text-rose-200">
-          Stream error: {soniox.state.error}
+        <p className={`rounded-lg border px-4 py-2 text-xs ${
+          soniox.state.reconnecting
+            ? "border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-200"
+            : "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-200"
+        }`}>
+          {soniox.state.reconnecting ? "🔄 " : ""}
+          {soniox.state.reconnecting ? soniox.state.error : `Stream error: ${soniox.state.error}`}
         </p>
       ) : null}
       {saveError ? (
