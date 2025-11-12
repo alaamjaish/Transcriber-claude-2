@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { RecordingActions } from "../components/RecordingConsole";
 
@@ -104,6 +104,10 @@ export function useSonioxStream() {
   const currentStreamRef = useRef<MediaStream | null>(null);
   const currentActionsRef = useRef<RecordingActions | null>(null);
   const isReconnectingRef = useRef(false);
+
+  // NEW: Track when the current WebSocket session started (for proactive token refresh)
+  const sessionStartedAtRef = useRef<number | null>(null);
+  const proactiveCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [state, setState] = useState<SonioxStreamState>({
     connected: false,
@@ -229,6 +233,12 @@ export function useSonioxStream() {
     // Cancel any pending reconnection
     cancelReconnect();
 
+    // NEW: Clear proactive refresh interval
+    if (proactiveCheckIntervalRef.current) {
+      clearInterval(proactiveCheckIntervalRef.current);
+      proactiveCheckIntervalRef.current = null;
+    }
+
     if (clientRef.current) {
       try {
         clientRef.current.stop();
@@ -244,13 +254,15 @@ export function useSonioxStream() {
 
     if (options?.resetStart) {
       startedAtRef.current = null;
+      sessionStartedAtRef.current = null; // NEW: Clear session timer
     }
     setState((prev) => ({ ...prev, connected: false }));
   }, [cancelReconnect]);
 
   // Core reconnection function with exponential backoff + jitter
   const reconnect = useCallback(async (
-    attempt: number = 1
+    attempt: number = 1,
+    isPlanned: boolean = false  // NEW: Flag for proactive token refresh vs error recovery
   ): Promise<void> => {
     const MAX_ATTEMPTS = state.reconnectMaxAttempts;
 
@@ -297,19 +309,25 @@ export function useSonioxStream() {
     const jitter = attempt === 1 ? 0 : getJitter(500);
     const delayMs = Math.min(baseDelay + jitter, 16000); // Cap at 16s
 
-    console.log(`[useSonioxStream] Reconnect attempt ${attempt}/${MAX_ATTEMPTS} in ${delayMs}ms`);
+    // NEW: Show different message for planned refresh vs error recovery
+    const logPrefix = isPlanned ? "Proactive token refresh" : "Reconnect";
+    const uiMessage = isPlanned
+      ? "Refreshing connection..."
+      : `Reconnecting... (${attempt}/${MAX_ATTEMPTS})`;
+
+    console.log(`[useSonioxStream] ${logPrefix} attempt ${attempt}/${MAX_ATTEMPTS} in ${delayMs}ms`);
 
     // Update UI state
     setState(prev => ({
       ...prev,
       reconnecting: true,
       reconnectAttempt: attempt,
-      error: `Reconnecting... (${attempt}/${MAX_ATTEMPTS})`
+      error: uiMessage
     }));
 
     const actions = currentActionsRef.current;
     if (actions) {
-      actions.fail(`Reconnecting... (${attempt}/${MAX_ATTEMPTS})`);
+      actions.fail(uiMessage);
     }
 
     // Wait with exponential backoff
@@ -371,6 +389,10 @@ export function useSonioxStream() {
           // DON'T call actions.setLive() - we're already live, just reconnected
           // The startedAt timestamp should NOT change
           isReconnectingRef.current = false;
+
+          // NEW: Reset session timer for proactive token refresh
+          sessionStartedAtRef.current = Date.now();
+          console.log("[useSonioxStream] Session timer reset - next proactive refresh in 25 seconds");
         },
         onPartialResult: (result: { tokens?: SonioxToken[] }) => {
           try {
@@ -460,6 +482,46 @@ export function useSonioxStream() {
     }
   }, [processTokens, stop, state.reconnectMaxAttempts]);
 
+  // NEW: Proactive token refresh - check every 5 seconds, refresh at 25 seconds
+  useEffect(() => {
+    // Only run when connected and not already reconnecting
+    if (!state.connected || isReconnectingRef.current) {
+      return;
+    }
+
+    const REFRESH_INTERVAL_MS = 25 * 1000; // 25 seconds (for testing - will be 55 minutes in production)
+    const CHECK_INTERVAL_MS = 5 * 1000;   // Check every 5 seconds
+
+    const checkTimer = setInterval(() => {
+      const sessionStart = sessionStartedAtRef.current;
+      if (!sessionStart) {
+        console.log("[useSonioxStream] No session start time - skipping proactive refresh check");
+        return;
+      }
+
+      const elapsed = Date.now() - sessionStart;
+      console.log(`[useSonioxStream] Proactive refresh check: ${Math.floor(elapsed / 1000)}s / ${REFRESH_INTERVAL_MS / 1000}s elapsed`);
+
+      if (elapsed >= REFRESH_INTERVAL_MS) {
+        console.log("[useSonioxStream] ⏰ Triggering proactive token refresh at 25 seconds");
+
+        // Clear this interval - reconnect will start its own
+        clearInterval(checkTimer);
+
+        // Trigger planned reconnection
+        isReconnectingRef.current = true;
+        reconnect(1, true); // isPlanned = true
+      }
+    }, CHECK_INTERVAL_MS);
+
+    proactiveCheckIntervalRef.current = checkTimer;
+
+    return () => {
+      clearInterval(checkTimer);
+      proactiveCheckIntervalRef.current = null;
+    };
+  }, [state.connected, reconnect]);
+
   const start = useCallback(
     async ({ apiKey, websocketUrl, stream, actions }: StartStreamParams) => {
       stop({ resetStart: true });
@@ -491,6 +553,10 @@ export function useSonioxStream() {
             }));
             const startedAt = startedAtRef.current ?? Date.now();
             actions.setLive(startedAt);
+
+            // NEW: Start session timer for proactive token refresh
+            sessionStartedAtRef.current = Date.now();
+            console.log("[useSonioxStream] Session timer started - proactive refresh in 25 seconds");
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
             try {
