@@ -519,9 +519,8 @@ export function useSonioxStream() {
       if (elapsed >= REFRESH_INTERVAL_MS) {
         console.log("[useSonioxStream] ⏰🔥 TRIGGERING PROACTIVE TOKEN REFRESH at 25 seconds!");
 
-        // Clear this interval - reconnect will start its own
-        clearInterval(checkTimer);
-        proactiveCheckIntervalRef.current = null;
+        // DON'T clear the timer - let it keep running and checking
+        // After reconnection, sessionStartedAtRef will be reset and timer will continue naturally
 
         // Call reconnect directly - it will set the reconnecting flag internally
         (async () => {
