@@ -272,6 +272,12 @@ export function useSonioxStream() {
       return;
     }
 
+    // Mark as reconnecting (AFTER guard check passes)
+    if (attempt === 1) {
+      isReconnectingRef.current = true;
+      console.log("[useSonioxStream] 🔒 Reconnection flag SET - blocking concurrent attempts");
+    }
+
     // Give up after max attempts
     if (attempt > MAX_ATTEMPTS) {
       console.error(`[useSonioxStream] Reconnection failed after ${MAX_ATTEMPTS} attempts`);
@@ -517,15 +523,14 @@ export function useSonioxStream() {
         clearInterval(checkTimer);
         proactiveCheckIntervalRef.current = null;
 
-        // Trigger planned reconnection
-        isReconnectingRef.current = true;
-
-        // Call reconnect directly (don't depend on the callback from closure)
+        // Call reconnect directly - it will set the reconnecting flag internally
         (async () => {
           try {
             await reconnect(1, true); // isPlanned = true
           } catch (error) {
             console.error("[useSonioxStream] ❌ Proactive refresh failed", error);
+            // Clear flag on error
+            isReconnectingRef.current = false;
           }
         })();
       }
@@ -610,10 +615,7 @@ export function useSonioxStream() {
             if (isRecoverableError(status, message)) {
               console.log("[useSonioxStream] Recoverable error detected - attempting reconnection");
 
-              // Mark as reconnecting
-              isReconnectingRef.current = true;
-
-              // Start reconnection sequence
+              // Start reconnection sequence - it will set the reconnecting flag internally
               reconnect(1);
             } else {
               // Non-recoverable error (API auth, permissions, etc) - fail permanently
