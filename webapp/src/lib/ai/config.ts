@@ -49,11 +49,11 @@ export const AI_MODELS = {
 export const MODEL_SETTINGS = {
   summary: {
     temperature: 1.0,
-    maxTokens: 2000,
+    maxTokens: 3500,
   },
   homework: {
     temperature: 1.0,
-    maxTokens: 2000,
+    maxTokens: 3500,
   },
   chat: {
     temperature: 0.7,
