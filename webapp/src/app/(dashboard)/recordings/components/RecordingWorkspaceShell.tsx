@@ -272,6 +272,7 @@ export function RecordingWorkspaceShell() {
       }
       mixer.stop();
       backup.stopAutoSave();
+      backup.clearDraft();  // Clear the draft so it doesn't get auto-recovered
       selectedStudentRef.current = null;
       resetActions(actions);
       setSaveError(null);
