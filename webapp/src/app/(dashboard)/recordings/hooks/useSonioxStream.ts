@@ -391,8 +391,9 @@ export function useSonioxStream() {
           isReconnectingRef.current = false;
 
           // NEW: Reset session timer for proactive token refresh
-          sessionStartedAtRef.current = Date.now();
-          console.log("[useSonioxStream] Session timer reset - next proactive refresh in 25 seconds");
+          const newSessionStart = Date.now();
+          sessionStartedAtRef.current = newSessionStart;
+          console.log(`[useSonioxStream] ⏰🔄 Session timer RESET at ${new Date(newSessionStart).toLocaleTimeString()} - next proactive refresh in 25 seconds`);
         },
         onPartialResult: (result: { tokens?: SonioxToken[] }) => {
           try {
@@ -484,10 +485,15 @@ export function useSonioxStream() {
 
   // NEW: Proactive token refresh - check every 5 seconds, refresh at 25 seconds
   useEffect(() => {
+    console.log(`[useSonioxStream] 🔄 Proactive refresh useEffect triggered - connected: ${state.connected}, reconnecting: ${isReconnectingRef.current}`);
+
     // Only run when connected and not already reconnecting
     if (!state.connected || isReconnectingRef.current) {
+      console.log("[useSonioxStream] ❌ Proactive refresh NOT starting - conditions not met");
       return;
     }
+
+    console.log("[useSonioxStream] ✅ Starting proactive refresh interval timer");
 
     const REFRESH_INTERVAL_MS = 25 * 1000; // 25 seconds (for testing - will be 55 minutes in production)
     const CHECK_INTERVAL_MS = 5 * 1000;   // Check every 5 seconds
@@ -495,28 +501,41 @@ export function useSonioxStream() {
     const checkTimer = setInterval(() => {
       const sessionStart = sessionStartedAtRef.current;
       if (!sessionStart) {
-        console.log("[useSonioxStream] No session start time - skipping proactive refresh check");
+        console.log("[useSonioxStream] ⚠️ No session start time - skipping proactive refresh check");
         return;
       }
 
       const elapsed = Date.now() - sessionStart;
-      console.log(`[useSonioxStream] Proactive refresh check: ${Math.floor(elapsed / 1000)}s / ${REFRESH_INTERVAL_MS / 1000}s elapsed`);
+      const elapsedSeconds = Math.floor(elapsed / 1000);
+      const targetSeconds = REFRESH_INTERVAL_MS / 1000;
+      console.log(`[useSonioxStream] ⏱️ Proactive refresh check: ${elapsedSeconds}s / ${targetSeconds}s elapsed`);
 
       if (elapsed >= REFRESH_INTERVAL_MS) {
-        console.log("[useSonioxStream] ⏰ Triggering proactive token refresh at 25 seconds");
+        console.log("[useSonioxStream] ⏰🔥 TRIGGERING PROACTIVE TOKEN REFRESH at 25 seconds!");
 
         // Clear this interval - reconnect will start its own
         clearInterval(checkTimer);
+        proactiveCheckIntervalRef.current = null;
 
         // Trigger planned reconnection
         isReconnectingRef.current = true;
-        reconnect(1, true); // isPlanned = true
+
+        // Call reconnect directly (don't depend on the callback from closure)
+        (async () => {
+          try {
+            await reconnect(1, true); // isPlanned = true
+          } catch (error) {
+            console.error("[useSonioxStream] ❌ Proactive refresh failed", error);
+          }
+        })();
       }
     }, CHECK_INTERVAL_MS);
 
     proactiveCheckIntervalRef.current = checkTimer;
+    console.log(`[useSonioxStream] ✅ Proactive refresh timer started - will check every ${CHECK_INTERVAL_MS / 1000}s`);
 
     return () => {
+      console.log("[useSonioxStream] 🧹 Cleaning up proactive refresh timer");
       clearInterval(checkTimer);
       proactiveCheckIntervalRef.current = null;
     };
@@ -546,6 +565,7 @@ export function useSonioxStream() {
           apiKey,
           webSocketUri: websocketUrl ?? undefined,
           onStarted: () => {
+            console.log("[useSonioxStream] 🚀 WebSocket onStarted fired!");
             setState(prev => ({
               ...prev,
               connected: true,
@@ -555,8 +575,9 @@ export function useSonioxStream() {
             actions.setLive(startedAt);
 
             // NEW: Start session timer for proactive token refresh
-            sessionStartedAtRef.current = Date.now();
-            console.log("[useSonioxStream] Session timer started - proactive refresh in 25 seconds");
+            const sessionStart = Date.now();
+            sessionStartedAtRef.current = sessionStart;
+            console.log(`[useSonioxStream] ⏰ Session timer STARTED at ${new Date(sessionStart).toLocaleTimeString()} - proactive refresh will happen in 25 seconds`);
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
             try {
