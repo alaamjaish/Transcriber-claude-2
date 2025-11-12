@@ -309,7 +309,7 @@ export function useSonioxStream() {
 
     const actions = currentActionsRef.current;
     if (actions) {
-      actions.fail(`Reconnecting... (${attempt}/${MAX_ATTEMPTS})`);
+      actions.setReconnecting(`Reconnecting... (${attempt}/${MAX_ATTEMPTS})`);
     }
 
     // Wait with exponential backoff
@@ -368,8 +368,12 @@ export function useSonioxStream() {
             error: null
           }));
 
-          // DON'T call actions.setLive() - we're already live, just reconnected
-          // The startedAt timestamp should NOT change
+          // CRITICAL: Reset phase back to "live" so timer continues running
+          const actions = currentActionsRef.current;
+          if (actions && startedAtRef.current) {
+            actions.setLive(startedAtRef.current);
+          }
+
           isReconnectingRef.current = false;
         },
         onPartialResult: (result: { tokens?: SonioxToken[] }) => {
