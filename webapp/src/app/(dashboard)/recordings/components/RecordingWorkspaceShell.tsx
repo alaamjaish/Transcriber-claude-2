@@ -1,3 +1,30 @@
+/**
+ * ⚠️ ⚠️ ⚠️ DEPRECATION WARNING - THIS FILE IS NO LONGER IN USE ⚠️ ⚠️ ⚠️
+ *
+ * This file (RecordingWorkspaceShell.tsx) is NOT being used anymore!
+ *
+ * The recording functionality has been moved to a per-student interface.
+ * Users now record directly from each student's individual page, not from
+ * the main dashboard/recordings page.
+ *
+ * ✅ ACTIVE FILE (the one actually being used):
+ *    Location: webapp/src/app/(dashboard)/students/[studentId]/components/StudentRecordingInterface.tsx
+ *    Purpose: Handles all recording operations for individual students
+ *
+ * ❌ THIS FILE (deprecated, kept for reference only):
+ *    Location: webapp/src/app/(dashboard)/recordings/components/RecordingWorkspaceShell.tsx
+ *    Status: No longer in active use - the recordings page UI has been removed
+ *
+ * TO AI ASSISTANTS AND FUTURE DEVELOPERS:
+ * - If you need to fix recording bugs, modify StudentRecordingInterface.tsx, NOT this file
+ * - If you need to add recording features, modify StudentRecordingInterface.tsx, NOT this file
+ * - This file can be deleted once we confirm the new system is stable
+ * - Any changes made to this file will NOT affect the user experience
+ *
+ * Date deprecated: 2025-11-12
+ * ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️
+ */
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

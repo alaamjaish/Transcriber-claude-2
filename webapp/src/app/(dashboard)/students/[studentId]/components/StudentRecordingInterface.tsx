@@ -324,6 +324,7 @@ export function StudentRecordingInterface({ student, onEditName }: StudentRecord
       }
       mixer.stop();
       backup.stopAutoSave();
+      backup.clearDraft();  // Clear the draft so it doesn't get auto-recovered
       resetActions(actions);
       setSaveError(null);
       setSaveSuccess(null);
