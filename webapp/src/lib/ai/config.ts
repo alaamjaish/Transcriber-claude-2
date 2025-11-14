@@ -17,9 +17,9 @@ export const AI_MODELS = {
   /**
    * Summary Generation
    * Recommended: Fast, cost-effective models
-   * Current: GPT-5.1 Chat (Instant) - Fast, non-reasoning variant optimized for speed
+   * Current: GPT-5.1 (base model) - Latest OpenAI model, fast and intelligent
    */
-  summary: 'openai/gpt-5.1-chat',
+  summary: 'openai/gpt-5.1',
 
   /**
    * Homework Generation
