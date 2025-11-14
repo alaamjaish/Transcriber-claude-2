@@ -17,6 +17,9 @@ interface ChatCompletionRequest {
   messages: Message[];
   temperature?: number;
   max_tokens?: number;
+  reasoning?: {
+    effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
+  };
 }
 
 interface ChatCompletionResponse {
@@ -94,14 +97,16 @@ export async function simpleChatCompletion({
   userMessage,
   temperature = 0.7,
   maxTokens = 2000,
+  reasoningEffort,
 }: {
   model: string;
   systemMessage: string;
   userMessage: string;
   temperature?: number;
   maxTokens?: number;
+  reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high';
 }): Promise<string> {
-  return callOpenRouter({
+  const request: ChatCompletionRequest = {
     model,
     messages: [
       { role: 'system', content: systemMessage },
@@ -109,7 +114,14 @@ export async function simpleChatCompletion({
     ],
     temperature,
     max_tokens: maxTokens,
-  });
+  };
+
+  // Add reasoning parameter if specified
+  if (reasoningEffort) {
+    request.reasoning = { effort: reasoningEffort };
+  }
+
+  return callOpenRouter(request);
 }
 
 /**

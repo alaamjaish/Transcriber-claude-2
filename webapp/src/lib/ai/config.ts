@@ -50,6 +50,7 @@ export const MODEL_SETTINGS = {
   summary: {
     temperature: 1.0,
     maxTokens: 3500,
+    reasoningEffort: 'none' as const, // GPT-5.1: Disable reasoning for max speed
   },
   homework: {
     temperature: 1.0,

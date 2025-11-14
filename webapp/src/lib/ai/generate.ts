@@ -55,6 +55,7 @@ export async function generateSummary(
     userMessage: userPrompt,
     temperature: MODEL_SETTINGS.summary.temperature,
     maxTokens: MODEL_SETTINGS.summary.maxTokens,
+    reasoningEffort: MODEL_SETTINGS.summary.reasoningEffort,
   });
 }
 
