@@ -17,9 +17,9 @@ export const AI_MODELS = {
   /**
    * Summary Generation
    * Recommended: Fast, cost-effective models
-   * Current: Gemini Flash (cheap, fast, good quality)
+   * Current: Gemini 3 Pro Preview (state-of-the-art reasoning, 1M token context)
    */
-  summary: 'anthropic/claude-sonnet-4.5',
+  summary: 'google/gemini-3-pro-preview',
 
   /**
    * Homework Generation
