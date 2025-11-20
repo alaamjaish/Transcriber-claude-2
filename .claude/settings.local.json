@@ -33,7 +33,11 @@
       "WebFetch(domain:ai-sdk.dev)",
       "Bash(git pull:*)",
       "WebFetch(domain:soniox.com)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "mcp__supabase__postgrestRequest",
+      "Bash(npx supabase:*)",
+      "Bash(node -e:*)",
+      "Bash(node fetch-full-schema.js:*)"
     ],
     "deny": [],
     "ask": []
