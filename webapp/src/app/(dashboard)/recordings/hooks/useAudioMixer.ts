@@ -80,8 +80,13 @@ export function useAudioMixer(): AudioMixer {
 
       if (options.includeSystemAudio) {
         try {
+          // Check if running in Electron desktop app
+          const isElectron = typeof window !== 'undefined' &&
+                             (window as any).electron?.isElectron;
+
           // Request screen/tab sharing with system audio
-          // User must select "Chrome Tab" or "Entire Screen" and check "Share audio"
+          // In Electron: Auto-approved via setDisplayMediaRequestHandler (no popup)
+          // In Browser: User must select "Chrome Tab" or "Entire Screen" and check "Share audio"
           systemStreamRef.current = await navigator.mediaDevices.getDisplayMedia({
             audio: {
               echoCancellation: false,
@@ -89,9 +94,11 @@ export function useAudioMixer(): AudioMixer {
               autoGainControl: false,
               systemAudio: "include",
             } as SystemAudioConstraints,
-            video: {
-              displaySurface: "monitor",
-            } as MediaTrackConstraints,
+            video: isElectron
+              ? false  // Electron: No video needed (auto-approved with loopback audio)
+              : {
+                  displaySurface: "monitor",
+                } as MediaTrackConstraints,  // Browser: Still need video for screen share
           });
 
           const systemTracks = systemStreamRef.current.getAudioTracks();
