@@ -1,0 +1,33 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:  # Manual trigger from GitHub
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd electron-wrapper
+          npm install
+
+      - name: Build macOS app
+        run: |
+          cd electron-wrapper
+          npm run build:mac
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v3
+        with:
+          name: Transcriber-macOS
+          path: electron-wrapper/dist/*.dmg

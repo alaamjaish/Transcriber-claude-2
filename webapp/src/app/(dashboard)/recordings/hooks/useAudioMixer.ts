@@ -82,7 +82,8 @@ export function useAudioMixer(): AudioMixer {
         try {
           // Check if running in Electron desktop app
           const isElectron = typeof window !== 'undefined' &&
-                             (window as any).electron?.isElectron;
+                             'electron' in window &&
+                             (window as { electron?: { isElectron?: boolean } }).electron?.isElectron;
 
           // Request screen/tab sharing with system audio
           // In Electron: Auto-approved via setDisplayMediaRequestHandler (no popup)
