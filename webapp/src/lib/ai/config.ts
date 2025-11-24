@@ -17,9 +17,9 @@ export const AI_MODELS = {
   /**
    * Summary Generation
    * Recommended: Fast, cost-effective models
-   * Current: Gemini Flash (cheap, fast, good quality)
+   * Current: GPT-5.1 (adaptive reasoning, excellent quality)
    */
-  summary: 'anthropic/claude-sonnet-4.5',
+  summary: 'openai/gpt-5.1',
 
   /**
    * Homework Generation
