@@ -17,9 +17,9 @@ export const AI_MODELS = {
   /**
    * Summary Generation
    * Recommended: Fast, cost-effective models
-   * Current: Gemini Flash (cheap, fast, good quality)
+   * Current: Gemini 3 Pro Preview (new flagship model)
    */
-  summary: 'anthropic/claude-sonnet-4.5',
+  summary: 'google/gemini-3-pro-preview',
 
   /**
    * Homework Generation
@@ -49,7 +49,7 @@ export const AI_MODELS = {
 export const MODEL_SETTINGS = {
   summary: {
     temperature: 1.0,
-    maxTokens: 3500,
+    maxTokens: 7000,
   },
   homework: {
     temperature: 1.0,
