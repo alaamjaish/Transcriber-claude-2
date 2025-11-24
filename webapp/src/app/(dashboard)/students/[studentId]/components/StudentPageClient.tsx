@@ -22,14 +22,13 @@ export function StudentPageClient({ student, errorMessage }: StudentPageClientPr
 
   return (
     <>
-      {/* AI Tutor Toggle Button */}
-      <div className="fixed top-4 left-4 z-[60]">
+      {/* AI Tutor Toggle Button - TEMPORARILY HIDDEN */}
+      {/* <div className="fixed top-4 left-4 z-[60]">
         <button
           onClick={() => setIsAIChatOpen(!isAIChatOpen)}
           className="group relative w-12 h-12 rounded-lg bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 transition-all duration-200 flex items-center justify-center shadow-lg"
           title={isAIChatOpen ? 'Close AI Tutor' : 'Open AI Tutor'}
         >
-          {/* AI Sparkle Icon (when closed) */}
           {!isAIChatOpen && (
             <svg
               className="w-5 h-5 text-white"
@@ -46,7 +45,6 @@ export function StudentPageClient({ student, errorMessage }: StudentPageClientPr
             </svg>
           )}
 
-          {/* Close X Icon (when open) */}
           {isAIChatOpen && (
             <div className="w-6 h-5 flex flex-col justify-center items-center">
               <span className="block h-0.5 w-6 bg-white transition-all duration-300 ease-out rotate-45 translate-y-[2px]" />
@@ -54,7 +52,7 @@ export function StudentPageClient({ student, errorMessage }: StudentPageClientPr
             </div>
           )}
         </button>
-      </div>
+      </div> */}
 
       {/* Main Content */}
       <div className="space-y-8">
@@ -81,13 +79,13 @@ export function StudentPageClient({ student, errorMessage }: StudentPageClientPr
         </Card>
       </div>
 
-      {/* AI Chat Sidebar */}
-      <AIChatSidebar
+      {/* AI Chat Sidebar - TEMPORARILY HIDDEN */}
+      {/* <AIChatSidebar
         studentId={student.id}
         studentName={student.name}
         isOpen={isAIChatOpen}
         onClose={() => setIsAIChatOpen(false)}
-      />
+      /> */}
 
       {/* Edit Student Modal */}
       <EditStudentModal
