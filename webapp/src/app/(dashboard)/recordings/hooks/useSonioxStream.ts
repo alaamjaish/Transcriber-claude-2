@@ -325,13 +325,14 @@ export function useSonioxStream() {
             resolve(newClient);
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
-            // Only process if this is now the active client
-            if (clientRef.current === newClient) {
-              try {
-                processTokens(result?.tokens ?? [], actions);
-              } catch (error) {
-                console.warn("[useSonioxStream] Partial result error in hot-swapped client", error);
-              }
+            // Process tokens immediately - no guard check needed!
+            // The guard was causing a race condition because clientRef.current
+            // is set AFTER onStarted fires, dropping tokens in between.
+            // This matches how reconnect() handles it (line 597-605).
+            try {
+              processTokens(result?.tokens ?? [], actions);
+            } catch (error) {
+              console.warn("[useSonioxStream] Partial result error in hot-swapped client", error);
             }
           },
           onFinished: () => {
@@ -732,10 +733,24 @@ export function useSonioxStream() {
             }
           },
           onFinished: () => {
+            // CRITICAL: Only process if this is still the active client!
+            // During hot swap, old client's onFinished fires when canceled,
+            // but clientRef.current is already the NEW client. Without this guard,
+            // we'd kill the new client and break the recording.
+            if (clientRef.current !== client) {
+              console.log('[useSonioxStream] Ignoring onFinished from old client (hot swap in progress)');
+              return;
+            }
             actions.updateLive([...finalSegmentsRef.current], speakerMapRef.current.size);
             stop({ resetStart: true });
           },
           onError: (status: string, message: string) => {
+            // CRITICAL: Ignore errors from old client during hot swap
+            if (clientRef.current !== client) {
+              console.log('[useSonioxStream] Ignoring onError from old client (hot swap in progress)');
+              return;
+            }
+
             console.error("[useSonioxStream] Soniox error", { status, message });
 
             // Immediately cleanup the old client to prevent "WebSocket already CLOSING" errors
