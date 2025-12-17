@@ -21,6 +21,8 @@ interface SonioxStreamState {
   reconnecting: boolean;           // Are we in reconnect loop?
   reconnectAttempt: number;        // Current attempt (1-6)
   reconnectMaxAttempts: number;    // Max attempts before giving up
+  sessionSegment: number;          // How many times we've done a hot swap (starts at 1)
+  isHotSwapping: boolean;          // Are we currently doing a seamless hot swap?
 }
 
 interface TranscriptSegment {
@@ -105,12 +107,26 @@ export function useSonioxStream() {
   const currentActionsRef = useRef<RecordingActions | null>(null);
   const isReconnectingRef = useRef(false);
 
+  // Refs for seamless hot swap (proactive token refresh)
+  const hotSwapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isHotSwappingRef = useRef(false);
+  const sessionSegmentRef = useRef(1);
+  const performHotSwapRef = useRef<(() => Promise<void>) | null>(null);
+  // Refs for functions needed in callbacks (avoids circular dependencies)
+  const stopRef = useRef<((options?: { resetStart?: boolean }) => void) | null>(null);
+  const reconnectRef = useRef<((attempt?: number) => Promise<void>) | null>(null);
+
+  // Hot swap timing configuration
+  const HOT_SWAP_INTERVAL_MS = 54 * 60 * 1000; // 54 minutes (6 min before 1-hour token expiry)
+
   const [state, setState] = useState<SonioxStreamState>({
     connected: false,
     error: null,
     reconnecting: false,
     reconnectAttempt: 0,
-    reconnectMaxAttempts: 6
+    reconnectMaxAttempts: 6,
+    sessionSegment: 1,
+    isHotSwapping: false
   });
 
   // Critical token filter (from results.md) - prevents control artifacts like "end end"
@@ -225,9 +241,203 @@ export function useSonioxStream() {
     }));
   }, []);
 
+  // Cancel any pending hot swap timer
+  const cancelHotSwap = useCallback(() => {
+    if (hotSwapTimerRef.current) {
+      clearTimeout(hotSwapTimerRef.current);
+      hotSwapTimerRef.current = null;
+    }
+    isHotSwappingRef.current = false;
+    setState((prev) => ({
+      ...prev,
+      isHotSwapping: false
+    }));
+  }, []);
+
+  // Schedule the next hot swap
+  const scheduleHotSwap = useCallback((delayMs: number = HOT_SWAP_INTERVAL_MS) => {
+    // Clear any existing timer
+    if (hotSwapTimerRef.current) {
+      clearTimeout(hotSwapTimerRef.current);
+    }
+
+    console.log(`[useSonioxStream] Scheduling hot swap in ${Math.round(delayMs / 60000)} minutes`);
+
+    hotSwapTimerRef.current = setTimeout(() => {
+      // Only perform hot swap if we're still connected and not already reconnecting
+      if (clientRef.current && !isReconnectingRef.current && !isHotSwappingRef.current) {
+        // Use ref to call performHotSwap (avoids circular dependency)
+        if (performHotSwapRef.current) {
+          performHotSwapRef.current();
+        }
+      }
+    }, delayMs);
+  }, []);
+
+  // Perform a seamless hot swap - new connection BEFORE killing old one
+  const performHotSwap = useCallback(async () => {
+    // Prevent concurrent hot swaps
+    if (isHotSwappingRef.current || isReconnectingRef.current) {
+      console.log("[useSonioxStream] Hot swap already in progress or reconnecting, skipping");
+      return;
+    }
+
+    const stream = currentStreamRef.current;
+    const actions = currentActionsRef.current;
+    const oldClient = clientRef.current;
+
+    if (!stream || !actions || !oldClient) {
+      console.warn("[useSonioxStream] Cannot hot swap - missing stream, actions, or client");
+      scheduleHotSwap(); // Try again later
+      return;
+    }
+
+    console.log("[useSonioxStream] Starting seamless hot swap...");
+    isHotSwappingRef.current = true;
+    setState(prev => ({ ...prev, isHotSwapping: true }));
+
+    try {
+      // Step 1: Fetch fresh token WHILE old client is still running
+      console.log("[useSonioxStream] Hot swap: Fetching fresh token...");
+      const tokenResponse = await fetch("/api/soniox/token", { method: "POST" });
+      if (!tokenResponse.ok) {
+        throw new Error(`Token fetch failed: ${tokenResponse.status}`);
+      }
+      const tokenData = await tokenResponse.json();
+
+      if (!tokenData.apiKey) {
+        throw new Error("Token response missing apiKey");
+      }
+
+      // Step 2: Create NEW Soniox client (old one still running!)
+      console.log("[useSonioxStream] Hot swap: Creating new client...");
+      const SonioxClientCtor = await loadSonioxClient();
+
+      // Create a promise that resolves when new client is ready
+      const newClientReady = new Promise<SonioxClientInstance>((resolve, reject) => {
+        const newClient = new SonioxClientCtor({
+          apiKey: tokenData.apiKey,
+          webSocketUri: tokenData.websocketUrl ?? undefined,
+          onStarted: () => {
+            console.log("[useSonioxStream] Hot swap: New client connected!");
+            resolve(newClient);
+          },
+          onPartialResult: (result: { tokens?: SonioxToken[] }) => {
+            // Only process if this is now the active client
+            if (clientRef.current === newClient) {
+              try {
+                processTokens(result?.tokens ?? [], actions);
+              } catch (error) {
+                console.warn("[useSonioxStream] Partial result error in hot-swapped client", error);
+              }
+            }
+          },
+          onFinished: () => {
+            if (clientRef.current === newClient) {
+              console.log("[useSonioxStream] Soniox finished after hot swap");
+              actions.updateLive([...finalSegmentsRef.current], speakerMapRef.current.size);
+              // Use ref to call stop (defined later in the code)
+              if (stopRef.current) {
+                stopRef.current({ resetStart: true });
+              }
+            }
+          },
+          onError: (status: string, message: string) => {
+            // If this is during hot swap setup, reject the promise
+            if (isHotSwappingRef.current && clientRef.current !== newClient) {
+              reject(new Error(`New client error: ${message || status}`));
+              return;
+            }
+
+            // If this is the active client, handle normally
+            if (clientRef.current === newClient) {
+              console.error("[useSonioxStream] Error in hot-swapped client", { status, message });
+
+              if (isRecoverableError(status, message)) {
+                isReconnectingRef.current = true;
+                // Use ref to call reconnect (defined later in the code)
+                if (reconnectRef.current) {
+                  reconnectRef.current(1);
+                }
+              } else {
+                const errorMessage = message || status || "Stream error";
+                actions.fail(errorMessage);
+                setState(prev => ({
+                  ...prev,
+                  connected: false,
+                  error: errorMessage,
+                  reconnecting: false,
+                  reconnectAttempt: 0,
+                  isHotSwapping: false
+                }));
+                // Use ref to call stop (defined later in the code)
+                if (stopRef.current) {
+                  stopRef.current({ resetStart: true });
+                }
+              }
+            }
+          }
+        });
+
+        // Start the new client with the same stream
+        newClient.start({
+          model: DEFAULT_MODEL,
+          stream,
+          enableSpeakerDiarization: true,
+          enableLanguageIdentification: true,
+          enableEndpointDetection: false,
+          languageHints: ["en", "ar"],
+        }).catch(reject);
+      });
+
+      // Step 3: Wait for new client to be fully ready
+      const newClient = await newClientReady;
+
+      // Step 4: ATOMIC SWAP - Kill old client immediately after new one is ready
+      console.log("[useSonioxStream] Hot swap: Swapping clients (old → new)...");
+      clientRef.current = newClient;
+
+      // Terminate old client
+      try {
+        oldClient.cancel();
+      } catch (err) {
+        console.warn("[useSonioxStream] Error canceling old client during hot swap", err);
+      }
+
+      // Step 5: Update state - increment session segment
+      sessionSegmentRef.current += 1;
+      setState(prev => ({
+        ...prev,
+        sessionSegment: sessionSegmentRef.current,
+        isHotSwapping: false
+      }));
+      isHotSwappingRef.current = false;
+
+      console.log(`[useSonioxStream] Hot swap complete! Now on session segment ${sessionSegmentRef.current}`);
+
+      // Step 6: Schedule next hot swap
+      scheduleHotSwap();
+
+    } catch (error) {
+      console.error("[useSonioxStream] Hot swap failed", error);
+      isHotSwappingRef.current = false;
+      setState(prev => ({ ...prev, isHotSwapping: false }));
+
+      // Old client should still be running - schedule retry in 1 minute
+      console.log("[useSonioxStream] Hot swap failed - old client still active, retrying in 1 minute");
+      scheduleHotSwap(60 * 1000); // Retry in 1 minute
+    }
+  }, [processTokens, scheduleHotSwap]);
+
+  // Keep performHotSwap ref updated (needed for scheduleHotSwap to call it)
+  performHotSwapRef.current = performHotSwap;
+
   const stop = useCallback((options?: { resetStart?: boolean }) => {
     // Cancel any pending reconnection
     cancelReconnect();
+
+    // Cancel any pending hot swap
+    cancelHotSwap();
 
     if (clientRef.current) {
       try {
@@ -244,9 +454,14 @@ export function useSonioxStream() {
 
     if (options?.resetStart) {
       startedAtRef.current = null;
+      // Reset session segment counter for next recording
+      sessionSegmentRef.current = 1;
     }
-    setState((prev) => ({ ...prev, connected: false }));
-  }, [cancelReconnect]);
+    setState((prev) => ({ ...prev, connected: false, sessionSegment: 1, isHotSwapping: false }));
+  }, [cancelReconnect, cancelHotSwap]);
+
+  // Keep stopRef updated (needed for performHotSwap callbacks)
+  stopRef.current = stop;
 
   // Core reconnection function with exponential backoff + jitter
   const reconnect = useCallback(async (
@@ -371,6 +586,9 @@ export function useSonioxStream() {
           // DON'T call actions.setLive() - we're already live, just reconnected
           // The startedAt timestamp should NOT change
           isReconnectingRef.current = false;
+
+          // Schedule next hot swap since we got a fresh token
+          scheduleHotSwap();
         },
         onPartialResult: (result: { tokens?: SonioxToken[] }) => {
           try {
@@ -458,7 +676,10 @@ export function useSonioxStream() {
         reconnect(attempt + 1);
       }
     }
-  }, [processTokens, stop, state.reconnectMaxAttempts]);
+  }, [processTokens, stop, state.reconnectMaxAttempts, scheduleHotSwap]);
+
+  // Keep reconnectRef updated (needed for performHotSwap callbacks)
+  reconnectRef.current = reconnect;
 
   const start = useCallback(
     async ({ apiKey, websocketUrl, stream, actions }: StartStreamParams) => {
@@ -468,11 +689,14 @@ export function useSonioxStream() {
         error: null,
         reconnecting: false,
         reconnectAttempt: 0,
-        reconnectMaxAttempts: 6
+        reconnectMaxAttempts: 6,
+        sessionSegment: 1,
+        isHotSwapping: false
       });
       finalSegmentsRef.current = [];
       speakerMapRef.current = new Map();
       startedAtRef.current = Date.now();
+      sessionSegmentRef.current = 1;
 
       // Save stream and actions refs for reconnection
       currentStreamRef.current = stream;
@@ -491,6 +715,10 @@ export function useSonioxStream() {
             }));
             const startedAt = startedAtRef.current ?? Date.now();
             actions.setLive(startedAt);
+
+            // Schedule first hot swap for seamless unlimited recording
+            scheduleHotSwap();
+            console.log("[useSonioxStream] Recording started - hot swap scheduled for ~54 minutes");
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
             try {
@@ -567,7 +795,7 @@ export function useSonioxStream() {
         throw error;
       }
     },
-    [processTokens, stop, reconnect],
+    [processTokens, stop, reconnect, scheduleHotSwap],
   );
 
   const getTranscriptText = useCallback(() => {
@@ -575,6 +803,8 @@ export function useSonioxStream() {
     return finalSegmentsRef.current.map((segment) => `${segment.speaker}: ${segment.text}`).join("\n");
 
   }, []);
+
+  const getSessionSegment = useCallback(() => sessionSegmentRef.current, []);
 
 
 
@@ -592,9 +822,11 @@ export function useSonioxStream() {
     stop,
     reconnect,           // Expose for manual/proactive reconnection
     cancelReconnect,     // Expose for canceling reconnection
+    performHotSwap,      // Expose for manual hot swap trigger
     getTranscriptText,
     getFinalSegments,
     getSpeakerCount,
-    getStartTimestamp
+    getStartTimestamp,
+    getSessionSegment    // Get current session segment number
   };
 }
