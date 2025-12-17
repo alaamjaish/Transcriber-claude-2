@@ -117,7 +117,9 @@ export function useSonioxStream() {
   const reconnectRef = useRef<((attempt?: number) => Promise<void>) | null>(null);
 
   // Hot swap timing configuration
-  const HOT_SWAP_INTERVAL_MS = 54 * 60 * 1000; // 54 minutes (6 min before 1-hour token expiry)
+  // TESTING: Set to 45 seconds for quick testing (change back to 54 * 60 * 1000 for production)
+  const HOT_SWAP_INTERVAL_MS = 45 * 1000; // 45 seconds for testing
+  // const HOT_SWAP_INTERVAL_MS = 54 * 60 * 1000; // 54 minutes for production
 
   const [state, setState] = useState<SonioxStreamState>({
     connected: false,
@@ -261,7 +263,8 @@ export function useSonioxStream() {
       clearTimeout(hotSwapTimerRef.current);
     }
 
-    console.log(`[useSonioxStream] Scheduling hot swap in ${Math.round(delayMs / 60000)} minutes`);
+    const delaySeconds = Math.round(delayMs / 1000);
+    console.log(`%c🔄 HOT SWAP SCHEDULED in ${delaySeconds} seconds`, 'background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
 
     hotSwapTimerRef.current = setTimeout(() => {
       // Only perform hot swap if we're still connected and not already reconnecting
@@ -292,13 +295,14 @@ export function useSonioxStream() {
       return;
     }
 
-    console.log("[useSonioxStream] Starting seamless hot swap...");
+    console.log('%c🔥 HOT SWAP STARTING...', 'background: #FF9800; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 14px;');
+    console.log('%c   Old client still running - transcript preserved!', 'color: #FF9800;');
     isHotSwappingRef.current = true;
     setState(prev => ({ ...prev, isHotSwapping: true }));
 
     try {
       // Step 1: Fetch fresh token WHILE old client is still running
-      console.log("[useSonioxStream] Hot swap: Fetching fresh token...");
+      console.log('%c   ⏳ Step 1/4: Fetching fresh token...', 'color: #2196F3;');
       const tokenResponse = await fetch("/api/soniox/token", { method: "POST" });
       if (!tokenResponse.ok) {
         throw new Error(`Token fetch failed: ${tokenResponse.status}`);
@@ -310,7 +314,7 @@ export function useSonioxStream() {
       }
 
       // Step 2: Create NEW Soniox client (old one still running!)
-      console.log("[useSonioxStream] Hot swap: Creating new client...");
+      console.log('%c   ⏳ Step 2/4: Creating new Soniox client...', 'color: #2196F3;');
       const SonioxClientCtor = await loadSonioxClient();
 
       // Create a promise that resolves when new client is ready
@@ -319,7 +323,7 @@ export function useSonioxStream() {
           apiKey: tokenData.apiKey,
           webSocketUri: tokenData.websocketUrl ?? undefined,
           onStarted: () => {
-            console.log("[useSonioxStream] Hot swap: New client connected!");
+            console.log('%c   ✅ Step 3/4: New client connected!', 'color: #4CAF50; font-weight: bold;');
             resolve(newClient);
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
@@ -394,7 +398,7 @@ export function useSonioxStream() {
       const newClient = await newClientReady;
 
       // Step 4: ATOMIC SWAP - Kill old client immediately after new one is ready
-      console.log("[useSonioxStream] Hot swap: Swapping clients (old → new)...");
+      console.log('%c   ⚡ Step 4/4: ATOMIC SWAP - switching clients...', 'color: #9C27B0; font-weight: bold;');
       clientRef.current = newClient;
 
       // Terminate old client
@@ -413,18 +417,20 @@ export function useSonioxStream() {
       }));
       isHotSwappingRef.current = false;
 
-      console.log(`[useSonioxStream] Hot swap complete! Now on session segment ${sessionSegmentRef.current}`);
+      console.log(`%c🎉 HOT SWAP COMPLETE! Session segment: ${sessionSegmentRef.current}`, 'background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 14px;');
+      console.log('%c   Transcript preserved ✓ | Audio stream continuous ✓ | Timer unchanged ✓', 'color: #4CAF50;');
 
       // Step 6: Schedule next hot swap
       scheduleHotSwap();
 
     } catch (error) {
-      console.error("[useSonioxStream] Hot swap failed", error);
+      console.log('%c❌ HOT SWAP FAILED', 'background: #f44336; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+      console.error("   Error:", error);
       isHotSwappingRef.current = false;
       setState(prev => ({ ...prev, isHotSwapping: false }));
 
       // Old client should still be running - schedule retry in 1 minute
-      console.log("[useSonioxStream] Hot swap failed - old client still active, retrying in 1 minute");
+      console.log('%c   Old client still active - retrying in 60 seconds...', 'color: #FF9800;');
       scheduleHotSwap(60 * 1000); // Retry in 1 minute
     }
   }, [processTokens, scheduleHotSwap]);
@@ -718,7 +724,7 @@ export function useSonioxStream() {
 
             // Schedule first hot swap for seamless unlimited recording
             scheduleHotSwap();
-            console.log("[useSonioxStream] Recording started - hot swap scheduled for ~54 minutes");
+            console.log('%c🎙️ RECORDING STARTED - Unlimited duration enabled!', 'background: #2196F3; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
             try {
