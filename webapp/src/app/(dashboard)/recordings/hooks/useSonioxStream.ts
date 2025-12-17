@@ -117,7 +117,7 @@ export function useSonioxStream() {
   const reconnectRef = useRef<((attempt?: number) => Promise<void>) | null>(null);
 
   // Hot swap timing configuration
-  const HOT_SWAP_INTERVAL_MS = 59 * 60 * 1000; // 59 minutes (1 min before 1-hour token expiry)
+  const HOT_SWAP_INTERVAL_MS = 45 * 1000; // 45 seconds for TESTING (prod: 59 * 60 * 1000)
 
   const [state, setState] = useState<SonioxStreamState>({
     connected: false,
@@ -325,13 +325,14 @@ export function useSonioxStream() {
             resolve(newClient);
           },
           onPartialResult: (result: { tokens?: SonioxToken[] }) => {
-            // Only process if this is now the active client
-            if (clientRef.current === newClient) {
-              try {
-                processTokens(result?.tokens ?? [], actions);
-              } catch (error) {
-                console.warn("[useSonioxStream] Partial result error in hot-swapped client", error);
-              }
+            // Process tokens immediately - no guard check needed!
+            // The guard was causing a race condition because clientRef.current
+            // is set AFTER onStarted fires, dropping tokens in between.
+            // This matches how reconnect() handles it (line 597-605).
+            try {
+              processTokens(result?.tokens ?? [], actions);
+            } catch (error) {
+              console.warn("[useSonioxStream] Partial result error in hot-swapped client", error);
             }
           },
           onFinished: () => {
