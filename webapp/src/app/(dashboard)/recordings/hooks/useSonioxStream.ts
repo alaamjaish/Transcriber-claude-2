@@ -117,7 +117,7 @@ export function useSonioxStream() {
   const reconnectRef = useRef<((attempt?: number) => Promise<void>) | null>(null);
 
   // Hot swap timing configuration
-  const HOT_SWAP_INTERVAL_MS = 45 * 1000; // 45 seconds for TESTING (prod: 59 * 60 * 1000)
+  const HOT_SWAP_INTERVAL_MS = 59 * 60 * 1000; // 59 minutes (1 min before 1-hour token expiry)
 
   const [state, setState] = useState<SonioxStreamState>({
     connected: false,
