@@ -733,10 +733,24 @@ export function useSonioxStream() {
             }
           },
           onFinished: () => {
+            // CRITICAL: Only process if this is still the active client!
+            // During hot swap, old client's onFinished fires when canceled,
+            // but clientRef.current is already the NEW client. Without this guard,
+            // we'd kill the new client and break the recording.
+            if (clientRef.current !== client) {
+              console.log('[useSonioxStream] Ignoring onFinished from old client (hot swap in progress)');
+              return;
+            }
             actions.updateLive([...finalSegmentsRef.current], speakerMapRef.current.size);
             stop({ resetStart: true });
           },
           onError: (status: string, message: string) => {
+            // CRITICAL: Ignore errors from old client during hot swap
+            if (clientRef.current !== client) {
+              console.log('[useSonioxStream] Ignoring onError from old client (hot swap in progress)');
+              return;
+            }
+
             console.error("[useSonioxStream] Soniox error", { status, message });
 
             // Immediately cleanup the old client to prevent "WebSocket already CLOSING" errors
