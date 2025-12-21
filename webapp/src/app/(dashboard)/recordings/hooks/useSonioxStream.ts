@@ -44,7 +44,7 @@ interface SonioxToken {
   channel?: number | string;
 }
 
-const DEFAULT_MODEL = "stt-rt-preview";
+const DEFAULT_MODEL = "stt-rt-v3";
 
 let sonioxModulePromise: Promise<SonioxModule> | null = null;
 
